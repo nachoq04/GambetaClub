@@ -115,8 +115,8 @@ function normalize(rates) {
 var ZONES = {
   1: { S: 4000,  D: 5000  }, // cercano: Entre Ríos, Santa Fe, Córdoba
   2: { S: 4500,  D: 5500  }, // AMBA y Buenos Aires
-  3: { S: 6000,  D: 7000 }, // Centro y Cuyo, NOA, NEA, Mesopotamia
-  4: { S: 7000,  D: 8000 }  // Patagonia
+  3: { S: 7000,  D: 8000 }, // Centro y Cuyo, NOA, NEA, Mesopotamia
+  4: { S: 9000,  D: 10000 }  // Patagonia
 };
 function zoneFor(cp) {
   var n = parseInt(cp, 10);
