@@ -1,264 +1,147 @@
-'use strict';
-
 /**
- * Gambeta Club · Mercado Pago Checkout Pro (Vercel Serverless, Node 18+)
+ * Gambeta Club - Mercado Pago Checkout Pro.
+ * Función serverless de Vercel: POST /api/mercadopago
  *
- *   POST /api/mercadopago            -> crea la preferencia y devuelve { id, init_point, external_reference }
- *   GET  /api/mercadopago?payment_id -> verifica un pago { approved, status, external_reference }
+ * Body que manda la tienda:
+ *   {
+ *     name: "Nombre Apellido",
+ *     items: [{ id: "ARG-001", size: "L", quantity: 2 }],
+ *     shipping: { cp: "2400", type: "S" | "D" }      // opcional (solo si eligió envío por Correo)
+ *   }
  *
- * Variables de entorno (Vercel > Settings > Environment Variables):
- *   MP_ACCESS_TOKEN     (obligatoria)  Access Token de producción. Nunca va en el código ni en el navegador.
- *   CATALOG_CSV_URL     (recomendada)  El mismo link CSV publicado de tu Google Sheet. Con esto el servidor
- *                                      toma precio, nombre y stock del catálogo e ignora lo que mande el navegador.
- *   SITE_URL            (opcional)     https://tu-dominio.com  (sin barra final). Si no está, usa el origen del pedido.
- *   MP_WEBHOOK_URL      (opcional)     URL pública que recibe las notificaciones de pago de Mercado Pago.
- *   MAX_SHIPPING_COST   (opcional)     Tope aceptado para el envío, en pesos. Por defecto 60000.
- *   ALLOW_CLIENT_PRICES (no recomendada) "true" para confiar en los precios que manda el navegador.
+ * Por seguridad el precio NUNCA se toma del navegador: la función lee cada camiseta en Supabase
+ * (precio vigente, promo y stock) y vuelve a cotizar el envío con Correo Argentino.
+ * Así nadie puede pagar $1 editando el JavaScript de la página.
  *
- * Si tus productos viven en Supabase en vez del Sheet, reemplazá el cuerpo de loadCatalog()
- * por una consulta a tu tabla y devolvé el mismo Map (id -> { id, name, price, stock }).
+ * Variables de entorno (Vercel > Project > Settings > Environment Variables):
+ *   MP_ACCESS_TOKEN   Access Token de Mercado Pago (obligatoria)
+ *   SITE_URL          opcional, ej: https://gambetaclub.vercel.app (si falta, se usa el origen de la petición)
+ *   SUPABASE_URL / SUPABASE_ANON_KEY   opcionales (por defecto, las de la tienda)
  */
 
-const crypto = require('crypto');
+var correo = require("./cotizar.js");
 
-const MP_API = 'https://api.mercadopago.com';
-const MAX_ITEMS = 30;
-const MAX_QTY = 20;
-const MAX_SHIPPING = Number(process.env.MAX_SHIPPING_COST) || 60000;
-const CATALOG_TTL = 60 * 1000;           // el catálogo se reusa 1 minuto
-const CATALOG_STALE = 10 * 60 * 1000;    // si el Sheet falla, se tolera una copia de hasta 10 minutos
+var SUPABASE_URL = process.env.SUPABASE_URL || "https://imyzlrtysbwyrgaqasps.supabase.co";
+var SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlteXpscnR5c2J3eXJnYXFhc3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwOTY4MTksImV4cCI6MjEwNzY3MjgxOX0.ldp6ZryfOp0N53qBEW3vmtRh3mfBM81H4X55MQP0WSY";
+var MP_URL = "https://api.mercadopago.com/checkout/preferences";
+var TIMEOUT_MS = 8000;
+var MAX_LINES = 30, MAX_QTY = 20;
 
-let catalogCache = { at: 0, map: null };
+function fail(status, message) { var e = new Error(message); e.status = status; return e; }
 
-/* ---------------------------- utilidades ---------------------------- */
-
-function send(res, status, body) {
-  res.setHeader('Cache-Control', 'no-store');
-  return res.status(status).json(body);
+function timedFetch(url, opts) {
+  var ctl = new AbortController();
+  var t = setTimeout(function () { ctl.abort(); }, TIMEOUT_MS);
+  return fetch(url, Object.assign({}, opts, { signal: ctl.signal })).finally(function () { clearTimeout(t); });
 }
 
-function clean(v, max) {
-  return String(v == null ? '' : v).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, max);
+// Dominio al que vuelve el cliente: SITE_URL, o el origen de la petición.
+function siteBase(req) {
+  var base = process.env.SITE_URL || req.headers.origin || (req.headers.host ? "https://" + req.headers.host : "");
+  base = String(base).trim().replace(/\/+$/, "");
+  if (!/^https?:\/\/[^\s/]+$/i.test(base)) throw fail(500, "No se pudo determinar el dominio de la tienda. Definí SITE_URL en Vercel.");
+  return base;
 }
 
-function safeUrl(u) {
-  const s = String(u || '').trim();
-  return /^https:\/\/[^\s]{4,480}$/i.test(s) ? s : '';
-}
-
-function norm(s) {
-  return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z]/g, '');
-}
-
-async function fetchT(url, opts, ms) {
-  const ctl = new AbortController();
-  const t = setTimeout(() => ctl.abort(), ms);
-  try { return await fetch(url, Object.assign({}, opts, { signal: ctl.signal })); }
-  finally { clearTimeout(t); }
-}
-
-function baseUrl(req) {
-  const env = String(process.env.SITE_URL || '').trim().replace(/\/+$/, '');
-  if (/^https?:\/\/[^\s/]+$/i.test(env)) return env;
-  const origin = String(req.headers.origin || '').replace(/\/+$/, '');
-  if (/^https?:\/\/[^\s/]+$/i.test(origin)) return origin;
-  const host = req.headers['x-forwarded-host'] || req.headers.host;
-  const proto = String(req.headers['x-forwarded-proto'] || 'https').split(',')[0];
-  return `${proto}://${host}`;
-}
-
-/* ---------------------------- catálogo ---------------------------- */
-
-function parseCsv(text) {
-  const rows = []; let row = [], f = '', q = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (q) {
-      if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
-      else f += c;
-    } else if (c === '"') q = true;
-    else if (c === ',') { row.push(f); f = ''; }
-    else if (c === '\n') { row.push(f); rows.push(row); row = []; f = ''; }
-    else if (c !== '\r') f += c;
-  }
-  if (f !== '' || row.length) { row.push(f); rows.push(row); }
-  return rows;
-}
-
-const COLS = { id: 'id', nombre: 'name', precio: 'price', stocktalles: 'stock', talles: 'stock', estado: 'estado' };
-
-function buildCatalog(text) {
-  const rows = parseCsv(String(text).replace(/^\uFEFF/, ''));
-  const map = new Map();
-  if (rows.length < 2) return map;
-  const keys = rows[0].map((h) => COLS[norm(h)] || null);
-  for (const r of rows.slice(1)) {
-    const o = {};
-    keys.forEach((k, i) => { if (k) o[k] = (r[i] || '').trim(); });
-    if (o.estado !== 'Activo' || !o.id || !o.name) continue;
-    // mismo criterio que la tienda: "$45,000" y "45.000" valen 45000
-    const price = parseInt(String(o.price || '').replace(/[.,]\d{1,2}$/, '').replace(/\D/g, ''), 10);
-    if (!(price > 0)) continue;
-    const stock = {};
-    String(o.stock || '').split(',').forEach((s) => {
-      const [a, b] = s.split(':'); const k = (a || '').trim();
-      if (k) { const n = parseInt(b, 10); stock[k] = n > 0 ? n : 0; }
-    });
-    map.set(o.id, { id: o.id, name: o.name, price, stock });
-  }
+async function loadProducts(ids) {
+  var list = ids.map(function (id) { return '"' + id + '"'; }).join(",");
+  var url = SUPABASE_URL.replace(/\/+$/, "") + "/rest/v1/products?active=eq.true&select=id,name,price,promo_price,stock_sizes,images&id=in.(" + encodeURIComponent(list) + ")";
+  var r = await timedFetch(url, { headers: { apikey: SUPABASE_ANON_KEY, Authorization: "Bearer " + SUPABASE_ANON_KEY } });
+  if (!r.ok) throw fail(502, "No pudimos verificar los precios. Probá de nuevo en un momento.");
+  var rows = await r.json(), map = {};
+  rows.forEach(function (p) { map[p.id] = p; });
   return map;
 }
 
-async function loadCatalog() {
-  const url = process.env.CATALOG_CSV_URL;
-  if (!url) return null;
-  const now = Date.now();
-  if (catalogCache.map && now - catalogCache.at < CATALOG_TTL) return catalogCache.map;
-  try {
-    const r = await fetchT(url, { headers: { 'Cache-Control': 'no-cache' } }, 8000);
-    if (!r.ok) throw new Error('CSV HTTP ' + r.status);
-    const map = buildCatalog(await r.text());
-    if (!map.size) throw new Error('catálogo vacío');
-    catalogCache = { at: now, map };
-    return map;
-  } catch (e) {
-    console.error('[mp] catálogo:', e.message);
-    if (catalogCache.map && now - catalogCache.at < CATALOG_STALE) return catalogCache.map;
-    throw new Error('CATALOG_UNAVAILABLE');
-  }
+function parseBody(req) {
+  var b = req.body;
+  if (typeof b === "string") { try { b = JSON.parse(b); } catch (e) { b = null; } }
+  return b && typeof b === "object" ? b : {};
 }
-
-/* ---------------------------- verificación de pago ---------------------------- */
-
-async function verifyPayment(req, res, token) {
-  const id = new URL(req.url, 'http://x').searchParams.get('payment_id') || '';
-  if (!/^\d{5,20}$/.test(id)) return send(res, 400, { error: 'Pago inválido.' });
-  try {
-    const r = await fetchT(`${MP_API}/v1/payments/${id}`, { headers: { Authorization: `Bearer ${token}` } }, 10000);
-    if (r.status === 404) return send(res, 404, { approved: false, status: 'not_found' });
-    if (!r.ok) { console.error('[mp] verificación HTTP', r.status); return send(res, 502, { error: 'No pudimos verificar el pago.' }); }
-    const p = await r.json();
-    return send(res, 200, { approved: p.status === 'approved', status: p.status, external_reference: p.external_reference || null });
-  } catch (e) {
-    console.error('[mp] verificación:', e.message);
-    return send(res, 502, { error: 'No pudimos verificar el pago.' });
-  }
-}
-
-/* ---------------------------- handler ---------------------------- */
 
 module.exports = async function handler(req, res) {
-  const token = process.env.MP_ACCESS_TOKEN;
-  if (!token) {
-    console.error('[mp] falta la variable de entorno MP_ACCESS_TOKEN');
-    return send(res, 500, { error: 'El pago online no está disponible por el momento.' });
-  }
-
-  if (req.method === 'GET') return verifyPayment(req, res, token);
-  if (req.method !== 'POST') {
-    res.setHeader('Allow', 'GET, POST');
-    return send(res, 405, { error: 'Método no permitido.' });
-  }
-
-  let body = req.body;
-  if (typeof body === 'string') { try { body = JSON.parse(body); } catch (e) { body = null; } }
-  if (!body || typeof body !== 'object') return send(res, 400, { error: 'Pedido inválido.' });
-
-  const rawItems = Array.isArray(body.items) ? body.items : [];
-  if (!rawItems.length || rawItems.length > MAX_ITEMS) return send(res, 400, { error: 'Tu carrito está vacío o es demasiado grande.' });
-
-  const name = clean((body.buyer && body.buyer.name) || body.name, 80);
-  if (!name) return send(res, 400, { error: 'Falta tu nombre.' });
-  const delivery = clean(body.delivery, 60);
-
-  let shipping = Number(body.shipping_cost || 0);
-  if (!Number.isFinite(shipping) || shipping < 0 || shipping > MAX_SHIPPING) return send(res, 400, { error: 'El costo de envío no es válido.' });
-  shipping = Math.round(shipping);
-
-  /* --- items: precio, nombre y stock salen del catálogo, no del navegador --- */
-  let catalog;
-  try { catalog = await loadCatalog(); }
-  catch (e) { return send(res, 503, { error: 'No pudimos validar el stock. Probá de nuevo en un momento.' }); }
-  if (!catalog && process.env.ALLOW_CLIENT_PRICES !== 'true') {
-    console.error('[mp] falta CATALOG_CSV_URL: sin catálogo no se aceptan precios del navegador');
-    return send(res, 500, { error: 'El pago online no está disponible por el momento.' });
-  }
-
-  const items = [];
-  const wanted = new Map();
-  for (const it of rawItems) {
-    const id = clean(it && it.id, 64);
-    const size = clean(it && it.size, 12);
-    const qty = Number(it && it.quantity);
-    if (!id || !Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) return send(res, 400, { error: 'Hay un producto con datos inválidos.' });
-
-    let title, price;
-    if (catalog) {
-      const p = catalog.get(id);
-      if (!p) return send(res, 409, { error: 'Una de las camisetas ya no está disponible.' });
-      if (Object.keys(p.stock).length) {
-        if (!size) return send(res, 400, { error: `Falta elegir el talle de ${p.name}.` });
-        const avail = p.stock[size];
-        if (avail === undefined) return send(res, 409, { error: `El talle ${size} no existe para ${p.name}.` });
-        const key = id + '|' + size;
-        const sum = (wanted.get(key) || 0) + qty;
-        wanted.set(key, sum);
-        if (sum > avail) return send(res, 409, { error: `No hay stock suficiente de ${p.name} en talle ${size}.` });
-      }
-      title = p.name + (size ? ` (Talle ${size})` : '');
-      price = p.price;
-    } else {
-      title = clean(it.title, 200);
-      price = Number(it.unit_price);
-      if (!title || !(price > 0) || price > 5000000) return send(res, 400, { error: 'Hay un producto con datos inválidos.' });
-    }
-
-    const picture = safeUrl(it.picture_url);
-    items.push({
-      id,
-      title: clean(title, 250),
-      ...(size && { description: `Talle ${size}` }),
-      quantity: qty,
-      currency_id: 'ARS',
-      unit_price: price,
-      ...(picture && { picture_url: picture }),
-    });
-  }
-  if (shipping > 0) items.push({ id: 'envio', title: 'Envío a domicilio', quantity: 1, currency_id: 'ARS', unit_price: shipping });
-
-  /* --- preferencia --- */
-  const base = baseUrl(req);
-  const ref = 'GC-' + Date.now().toString(36).toUpperCase() + '-' + crypto.randomBytes(3).toString('hex').toUpperCase();
-  const preference = {
-    items,
-    payer: { name },
-    // MP agrega sus propios parámetros (status, payment_id...), por eso usamos mp_status y no "status"
-    back_urls: {
-      success: `${base}/?mp_status=success`,
-      failure: `${base}/?mp_status=failure`,
-      pending: `${base}/?mp_status=pending`,
-    },
-    ...(base.startsWith('https://') && { auto_return: 'approved' }),   // MP lo rechaza con http://localhost
-    external_reference: ref,
-    statement_descriptor: 'GAMBETA CLUB',
-    metadata: { buyer_name: name, delivery, shipping_cost: shipping },
-    ...(process.env.MP_WEBHOOK_URL && { notification_url: process.env.MP_WEBHOOK_URL }),
-  };
+  res.setHeader("Cache-Control", "no-store");
+  if (req.method === "OPTIONS") { res.setHeader("Allow", "POST, OPTIONS"); return res.status(204).end(); }
+  if (req.method !== "POST") { res.setHeader("Allow", "POST, OPTIONS"); return res.status(405).json({ error: "Método no permitido" }); }
 
   try {
-    const r = await fetchT(`${MP_API}/checkout/preferences`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(preference),
-    }, 12000);
-    const data = await r.json().catch(() => ({}));
-    if (!r.ok || !data.init_point) {
-      console.error('[mp] preferencia rechazada', r.status, JSON.stringify(data).slice(0, 600));
-      return send(res, 502, { error: 'No pudimos generar el pago. Probá de nuevo o elegí otro medio de pago.' });
+    var token = process.env.MP_ACCESS_TOKEN;
+    if (!token) throw fail(503, "El pago con Mercado Pago todavía no está disponible. Elegí transferencia o efectivo.");
+
+    var body = parseBody(req);
+    var name = String(body.name || "").trim().slice(0, 80);
+    var raw = Array.isArray(body.items) ? body.items : [];
+    if (!raw.length || raw.length > MAX_LINES) throw fail(400, "El carrito está vacío o es demasiado grande.");
+
+    // 1) Validar el carrito y juntar cantidades por camiseta
+    var lines = raw.map(function (i) {
+      var id = String(i && i.id || ""), size = String(i && i.size || ""), qty = Number(i && i.quantity);
+      if (!/^[\w.-]{1,40}$/.test(id) || !/^[A-Z0-9]{1,5}$/.test(size)) throw fail(400, "Hay un producto inválido en el carrito.");
+      if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QTY) throw fail(400, "Cantidad inválida en el carrito.");
+      return { id: id, size: size, qty: qty };
+    });
+    var ids = lines.map(function (l) { return l.id; }).filter(function (v, i, a) { return a.indexOf(v) === i; });
+    var products = await loadProducts(ids);
+
+    // 2) Precio y stock reales, desde la base
+    var items = [], shirts = 0, subtotal = 0;
+    lines.forEach(function (l) {
+      var p = products[l.id];
+      if (!p) throw fail(409, "Una de las camisetas de tu carrito ya no está disponible. Actualizá la página.");
+      var stock = Number(p.stock_sizes && p.stock_sizes[l.size]);
+      var inCart = lines.filter(function (x) { return x.id === l.id && x.size === l.size; }).reduce(function (s, x) { return s + x.qty; }, 0);
+      if (!(stock > 0) || inCart > stock) throw fail(409, p.name + " talle " + l.size + ": no hay stock suficiente.");
+      var price = Number(p.promo_price) > 0 && Number(p.promo_price) < Number(p.price) ? Number(p.promo_price) : Number(p.price);
+      var unit = Math.round(price);
+      var item = { id: p.id + "-" + l.size, title: (p.name + " (Talle " + l.size + ")").slice(0, 250), description: "Camiseta " + p.name + ", talle " + l.size,
+                   category_id: "fashion", quantity: l.qty, currency_id: "ARS", unit_price: unit };
+      if (p.images && /^https:\/\//.test(p.images[0] || "")) item.picture_url = p.images[0];
+      items.push(item); shirts += l.qty; subtotal += unit * l.qty;
+    });
+
+    // 3) Envío: se vuelve a cotizar acá, el costo que mande el navegador no se usa
+    var shipping = null, ship = body.shipping;
+    if (ship && ship.type) {
+      var cp = String(ship.cp || "").trim();
+      if (!/^[1-9]\d{3}$/.test(cp) || (ship.type !== "S" && ship.type !== "D")) throw fail(400, "Datos de envío inválidos.");
+      var q = await correo.quote(cp, shirts);
+      var opt = q.options.filter(function (o) { return o.type === ship.type; })[0];
+      if (!opt) throw fail(409, "No encontramos esa modalidad de envío para tu código postal. Volvé a cotizar.");
+      shipping = { cp: cp, type: ship.type, price: opt.price, label: opt.label, source: q.source };
+      items.push({ id: "ENVIO-" + ship.type, title: ("Envío " + (ship.type === "S" ? "a sucursal" : "a domicilio") + " - Correo Argentino (CP " + cp + ")").slice(0, 250),
+                   category_id: "services", quantity: 1, currency_id: "ARS", unit_price: opt.price });
     }
-    return send(res, 200, { id: data.id, init_point: data.init_point, external_reference: ref });
+
+    // 4) Preferencia de pago
+    var base = siteBase(req), https = /^https:\/\//.test(base) && !/localhost|127\.0\.0\.1/.test(base);
+    var ref = "GC-" + Date.now().toString(36).toUpperCase();
+    var preference = {
+      items: items,
+      payer: name ? { name: name } : undefined,
+      back_urls: { success: base + "/?status=success", failure: base + "/?status=failure", pending: base + "/?status=pending" },
+      external_reference: ref,
+      statement_descriptor: "GAMBETA CLUB",
+      metadata: { name: name, shirts: shirts, shipping_cp: shipping && shipping.cp, shipping_type: shipping && shipping.type }
+    };
+    if (https) preference.auto_return = "approved"; // Mercado Pago solo lo acepta con URL pública https
+
+    var r = await timedFetch(MP_URL, {
+      method: "POST",
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", "X-Idempotency-Key": ref + "-" + Math.random().toString(36).slice(2, 10) },
+      body: JSON.stringify(preference)
+    });
+    var mp = await r.json().catch(function () { return {}; });
+    if (!r.ok || !mp.init_point) {
+      console.error("[mercadopago] error", r.status, JSON.stringify(mp).slice(0, 500));
+      throw fail(502, "Mercado Pago no pudo generar el pago. Probá de nuevo o elegí otro medio.");
+    }
+    return res.status(200).json({
+      id: mp.id, init_point: mp.init_point, sandbox_init_point: mp.sandbox_init_point,
+      ref: ref, subtotal: subtotal, shipping: shipping ? shipping.price : 0, total: subtotal + (shipping ? shipping.price : 0)
+    });
   } catch (e) {
-    console.error('[mp] error al crear la preferencia:', e.message);
-    return send(res, 502, { error: 'No pudimos generar el pago. Probá de nuevo o elegí otro medio de pago.' });
+    var status = e.status || (e.name === "AbortError" ? 504 : 500);
+    if (!e.status) console.error("[mercadopago]", e);
+    return res.status(status).json({ error: e.status ? e.message : (e.name === "AbortError" ? "Mercado Pago tardó demasiado. Probá de nuevo." : "No pudimos generar el pago. Probá de nuevo.") });
   }
 };
