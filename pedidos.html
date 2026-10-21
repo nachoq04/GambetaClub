@@ -403,7 +403,7 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
       <div class="olist" id="clist"></div>
     </div>
 
-    <!-- Reseñas -->
+<!-- Reseñas -->
     <div id="viewReviews" hidden>
       <div class="ord-head"><h2>Reseñas</h2><span class="num" id="rvCount" style="color:var(--mute)"></span></div>
       <p style="color:var(--mute);margin:8px 0 14px">Las que estén activas aparecen en la tienda en "Lo que dicen del club". Con cero activas, la sección no se muestra.</p>
@@ -412,12 +412,18 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
           <div class="field"><label for="rvName">Nombre</label><input type="text" id="rvName" maxlength="60" autocomplete="off" placeholder="Ej: Mati R."></div>
           <div class="field"><label for="rvCity">Ciudad (opcional)</label><input type="text" id="rvCity" maxlength="60" autocomplete="off" placeholder="Ej: Concordia"></div>
           <div class="field full"><label for="rvBody">Reseña</label><textarea id="rvBody" maxlength="400" placeholder="Lo que dijo el cliente, con sus palabras"></textarea></div>
-          <div class="field full"><label for="rvPhoto">Link de foto (opcional)</label><input type="url" id="rvPhoto" inputmode="url" autocomplete="off" placeholder="https://..."></div>
+          <div class="field full">
+            <span class="lbl" id="rvPhL">Foto (opcional)</span>
+            <label class="drop" id="rvDrop"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg><span><strong>Elegí una foto</strong> o arrastrala acá</span><span style="font-size:.82rem">Se guarda en WebP con buena calidad (máx. 2400 px) para que se pueda leer.</span><input type="file" id="rvFile" accept="image/*" aria-labelledby="rvPhL"></label>
+            <ul class="photos one" id="rvPhotos"></ul>
+            <p class="err" id="rvPhErr" role="alert"></p>
+          </div>
         </div>
         <p class="err" id="rvErr" role="alert"></p>
         <button class="btn btn-primary" type="submit">Agregar reseña</button>
       </form>
       <div class="rv-list" id="rvList"></div>
+      <input type="file" id="rvRowFile" accept="image/*" hidden>
     </div>
   </main>
 </div>
@@ -435,6 +441,7 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
 <script>
 (function(){
   "use strict";
+    
 
   /* ================== CONFIGURACIÓN ================== */
   var SUPABASE_URL = "https://imyzlrtysbwyrgaqasps.supabase.co";
