@@ -37,7 +37,9 @@ module.exports = async function handler(req, res) {
     var cart = await O.buildCart(body);
     var shipping = await O.buildShipping(body, cart.shirts);
     // la transferencia tiene 5% de descuento solo sobre las camiseta, nunca sobre el envío
-    var shirtsTotal = payment === "transferencia"
+    // con 2 o más camisetas ya rige el 10% por cantidad y no se suma el 5% de transferencia
+    var transfer = payment === "transferencia" && !cart.bulk;
+    var shirtsTotal = transfer
       ? cart.details.reduce(function (s, d) { return s + O.transferPrice(d.unit) * d.qty; }, 0)
       : cart.subtotal;
     var ship = shipping ? shipping.price : 0;
@@ -47,7 +49,8 @@ module.exports = async function handler(req, res) {
       ref: ref, name: name, phone: clean(body.phone, 30), delivery: envio ? "envio" : "retiro",
       delivery_label: clean(body.deliveryLabel, 80) || (envio ? "Envío" : "Retiro"),
       ship_cp: shipping ? shipping.cp : "", ship_type: shipping ? shipping.type : "", ship_label: shipping ? shipping.label : "", address: clean(body.address, 160),
-      items: cart.details.map(function (d) { return { id: d.id, name: d.name, size: d.size, qty: d.qty, unit_price: payment === "transferencia" ? O.transferPrice(d.unit) : d.unit }; }),
+      cart_session: clean(body.cartSession, 40),
+      items: cart.details.map(function (d) { return { id: d.id, name: d.name, size: d.size, qty: d.qty, unit_price: transfer ? O.transferPrice(d.unit) : d.unit }; }),
       subtotal: shirtsTotal, shipping: ship, total: shirtsTotal + ship, payment_method: payment
     });
     return res.status(200).json({ ref: ref, total: shirtsTotal + ship, saved: saved });
