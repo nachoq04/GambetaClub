@@ -22,6 +22,7 @@
  *   SITE_URL          opcional, ej: https://gambetaclub.vercel.app
  */
 var O = require("./_orders.js");
+var limited = require("./_limit.js");
 
 var MP_URL = "https://api.mercadopago.com/checkout/preferences";
 
@@ -32,6 +33,7 @@ module.exports = async function handler(req, res) {
   if (req.method === "OPTIONS") { res.setHeader("Allow", "POST, OPTIONS"); return res.status(204).end(); }
   if (req.method !== "POST") { res.setHeader("Allow", "POST, OPTIONS"); return res.status(405).json({ error: "Método no permitido" }); }
 
+  if (limited(req, res, "mp", 8, 60000)) return;
   try {
     var token = process.env.MP_ACCESS_TOKEN;
     if (!token) throw O.fail(503, "El pago con Mercado Pago todavía no está disponible. Elegí transferencia o efectivo.");

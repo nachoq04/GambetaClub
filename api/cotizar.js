@@ -15,6 +15,8 @@
  * Libertador San Martín (CP 3103) siempre usa su tarifa local.
  */
 
+var limited = require("./_limit.js");
+
 var BASES = {
   prod: "https://api.correoargentino.com.ar/micorreo/v1",
   test: "https://apitest.correoargentino.com.ar/micorreo/v1"
@@ -99,13 +101,13 @@ function dimensionsFor(qty) {
 var LABELS = { S: "Correo Argentino a Sucursal", D: "Correo Argentino a Domicilio" };
 
 // Deja la tarifa más barata de cada modalidad, con el precio en pesos enteros.
-function normalize(rates) {
+function normalize(rates, cp) {
   var best = {};
   (rates || []).forEach(function (r) {
     var type = r && r.deliveredType, price = Math.round(Number(r && r.price));
     if ((type !== "S" && type !== "D") || !isFinite(price) || price <= 0) return;
     if (!best[type] || price < best[type].price) {
-      best[type] = { type: type, label: LABELS[type], product: r.productName || "", price: price };
+      best[type] = { type: type, label: LABELS[type], product: r.productName || "", price: price, eta: etaFor(cp) };
     }
   });
   return ["S", "D"].filter(function (t) { return best[t]; }).map(function (t) { return best[t]; });
@@ -130,15 +132,18 @@ function zoneFor(cp) {
   if (n < 2000 || (n >= 6000 && n < 8300)) return 2;
   return 3;
 }
+// Plazos estimados desde que despachamos (los define Correo Argentino)
+var ETA = { 1: "2 a 4 días hábiles", 2: "3 a 5 días hábiles", 3: "4 a 7 días hábiles", 4: "6 a 9 días hábiles" };
+function etaFor(cp) { return ETA[zoneFor(cp)]; }
 function round100(n) { return Math.round(n / 100) * 100; }
 function localOptions(qty) {
-  return [{ type: "D", label: "Envío en Villa Libertador San Martín", product: "", local: true, price: round100(LOCAL.D * (1 + 0.15 * (qty - 1))) }];
+  return [{ type: "D", label: "Envío en Villa Libertador San Martín", product: "", local: true, eta: "1 a 2 días hábiles", price: round100(LOCAL.D * (1 + 0.15 * (qty - 1))) }];
 }
 function zoneOptions(cp, qty) {
   if (cp === LOCAL_CP) return localOptions(qty);
   var z = ZONES[zoneFor(cp)], k = 1 + 0.15 * (qty - 1);
   return ["S", "D"].map(function (t) {
-    return { type: t, label: LABELS[t], product: "", price: round100(z[t] * k) };
+    return { type: t, label: LABELS[t], product: "", price: round100(z[t] * k), eta: etaFor(cp) };
   });
 }
 
@@ -168,7 +173,7 @@ async function quote(cp, qty) {
       cache.token = null;
       data = await requestRates(c, payload, await getToken(c, true));
     }
-    var options = normalize(data && data.rates);
+    var options = normalize(data && data.rates, cp);
     if (!options.length) return fallback("MiCorreo no devolvió tarifas para " + cp);
     return { source: "micorreo", cp: cp, qty: qty, options: options };
   } catch (e) {
@@ -185,6 +190,7 @@ async function handler(req, res) {
   if (req.method === "OPTIONS") { res.setHeader("Allow", "POST, OPTIONS"); return res.status(204).end(); }
   if (req.method !== "POST") { res.setHeader("Allow", "POST, OPTIONS"); return send(res, 405, { error: "Método no permitido" }); }
 
+  if (limited(req, res, "cotizar", 40, 60000)) return;
   var body = req.body;
   if (typeof body === "string") { try { body = JSON.parse(body); } catch (e) { body = null; } }
   body = body || {};
