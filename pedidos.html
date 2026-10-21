@@ -314,13 +314,7 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
 .rv.off{opacity:.55}
 .rv p{grid-column:1/-1;color:var(--chalk);font-size:.95rem}
 .rv small{color:var(--mute)}
-.rv-act{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
-.drop{position:relative}
-.photos.one{grid-template-columns:minmax(112px,160px)}
-.photos.one .bar{grid-template-columns:1fr}
-.rv-who{display:flex;align-items:center;gap:12px;min-width:0}
-.rv-th{width:48px;height:60px;flex:none;border-radius:8px;object-fit:cover;background:var(--card-2);border:1px solid var(--line)}
-.rv.busy .rv-act{opacity:.55;pointer-events:none}
+.rv-act{display:flex;gap:6px}
 .note-box.ok{border-color:rgba(0,255,135,.4);background:rgba(0,255,135,.06);color:var(--acc)}
 .dot{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#121212;font-size:.72rem;font-weight:800}
 .dot:empty{display:none}
@@ -375,6 +369,7 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
       <nav class="navtabs" aria-label="Secciones">
         <a href="admin.html">Productos</a>
         <button type="button" id="tabOrders" aria-current="page">Pedidos<span id="newDot"></span></button>
+        <button type="button" id="tabCarts">Carritos<span id="cartDot"></span></button>
         <button type="button" id="tabReviews">Reseñas</button>
       </nav>
       <div class="top-r">
@@ -400,6 +395,14 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
       </section>
     </div>
 
+    <!-- Carritos -->
+    <div id="viewCarts" hidden>
+      <div class="ord-head"><h2>Carritos</h2><span class="num" id="cartCount" style="color:var(--mute)"></span></div>
+      <p style="color:var(--mute);margin:8px 0 14px">Gente que dejó su teléfono y armó un carrito. "Para contactar" son los que llevan más de 20 minutos sin cerrar la compra. Escribirles una vez, con buena onda, alcanza.</p>
+      <div class="chips" id="cartChips" role="group" aria-label="Estado del carrito"></div>
+      <div class="olist" id="clist"></div>
+    </div>
+
     <!-- Reseñas -->
     <div id="viewReviews" hidden>
       <div class="ord-head"><h2>Reseñas</h2><span class="num" id="rvCount" style="color:var(--mute)"></span></div>
@@ -409,18 +412,12 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
           <div class="field"><label for="rvName">Nombre</label><input type="text" id="rvName" maxlength="60" autocomplete="off" placeholder="Ej: Mati R."></div>
           <div class="field"><label for="rvCity">Ciudad (opcional)</label><input type="text" id="rvCity" maxlength="60" autocomplete="off" placeholder="Ej: Concordia"></div>
           <div class="field full"><label for="rvBody">Reseña</label><textarea id="rvBody" maxlength="400" placeholder="Lo que dijo el cliente, con sus palabras"></textarea></div>
-          <div class="field full">
-            <span class="lbl" id="rvPhL">Foto (opcional)</span>
-            <label class="drop" id="rvDrop"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg><span><strong>Elegí una foto</strong> o arrastrala acá</span><span style="font-size:.82rem">Se achica sola y se guarda en WebP (máx. 1000 px).</span><input type="file" id="rvFile" accept="image/*" aria-labelledby="rvPhL"></label>
-            <ul class="photos one" id="rvPhotos"></ul>
-            <p class="err" id="rvPhErr" role="alert"></p>
-          </div>
+          <div class="field full"><label for="rvPhoto">Link de foto (opcional)</label><input type="url" id="rvPhoto" inputmode="url" autocomplete="off" placeholder="https://..."></div>
         </div>
         <p class="err" id="rvErr" role="alert"></p>
         <button class="btn btn-primary" type="submit">Agregar reseña</button>
       </form>
       <div class="rv-list" id="rvList"></div>
-      <input type="file" id="rvRowFile" accept="image/*" hidden>
     </div>
   </main>
 </div>
@@ -443,9 +440,6 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
   var SUPABASE_URL = "https://imyzlrtysbwyrgaqasps.supabase.co";
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlteXpscnR5c2J3eXJnYXFhc3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwOTY4MTksImV4cCI6MjEwNzY3MjgxOX0.ldp6ZryfOp0N53qBEW3vmtRh3mfBM81H4X55MQP0WSY";
   var REFRESH_MS = 45000;
-  var BUCKET = "product-images";        // el mismo bucket que usa admin_1.html
-  var RV_FOLDER = "reviews";            // las fotos de reseñas van en esta carpeta del bucket
-  var MAX_SIDE = 1000, QUALITY = .82;
 
   /* Estados del pedido (los nombres que ve el cliente en WhatsApp salen de acá).
      pendiente -> pagado -> en_camino -> entregado, o cancelado */
@@ -540,8 +534,8 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
   function showLogin(){ clearInterval(timer); $("panel").hidden = true; $("login").hidden = false; $("loginBtn").disabled = false; $("loginBtn").textContent = "Ingresar"; }
   function showPanel(){
     $("login").hidden = true; $("panel").hidden = false;
-    loadOrders(true); loadReviews();
-    clearInterval(timer); timer = setInterval(function(){ if(!document.hidden && view==="orders") loadOrders(false); }, REFRESH_MS);
+    loadOrders(true); loadReviews(); loadCarts();
+    clearInterval(timer); timer = setInterval(function(){ if(!document.hidden){ if(view==="orders") loadOrders(false); else if(view==="carts") loadCarts(); } }, REFRESH_MS);
   }
   function friendlyAuth(e){
     var m = (e && e.message) || "";
@@ -599,10 +593,10 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
   }
   function needsAction(o){ return o.status==="pagado" || (o.status==="pendiente" && o.payment_status==="aprobado"); }
   function renderOrders(){
-    var c = counts(), porEnviar = orders.filter(function(o){ return o.status==="pagado"; }).length;
+    var c = counts(), porEnviar = orders.filter(function(o){ return o.status==="pagado" && !o.is_test; }).length;
     document.title = (porEnviar ? "("+porEnviar+") " : "")+"Pedidos | Gambeta Club";
     $("newDot").textContent = porEnviar ? porEnviar : ""; $("newDot").className = porEnviar ? "dot" : "";
-    var revenue = orders.filter(function(o){ return o.status!=="cancelado" && (o.payment_status==="aprobado" || o.status==="entregado"); }).reduce(function(s,o){ return s+(o.total||0); },0);
+    var revenue = orders.filter(function(o){ return !o.is_test && o.status!=="cancelado" && (o.payment_status==="aprobado" || o.status==="entregado"); }).reduce(function(s,o){ return s+(o.total||0); },0);
     $("metrics").innerHTML =
       tile("pendiente","En proceso de compra",c.pendiente,"w","esperan pago o compra")+
       tile("pagado","Por enviar",c.pagado,"b","comprados, falta despacharlos")+
@@ -651,7 +645,7 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
       '<button type="button" class="o-sum" aria-expanded="'+open+'" data-act="toggle">'+
         '<span><span class="o-ref">'+esc(o.ref)+'</span><span class="o-who" style="display:block">'+esc(o.name||"Sin nombre")+' · '+fdate(o.created_at)+'</span></span>'+
         '<span class="o-total">'+money(o.total)+'</span>'+
-        '<span class="o-meta"><span class="pill s-'+esc(o.status)+'">'+esc(stLabel(o))+'</span><span class="pill">'+esc(PAY[o.payment_method]||o.payment_method)+'</span><span class="pill '+payCls+'">'+esc(PAYST[pay]||pay)+'</span><span class="pill">'+(isPickup(o)?"Retiro":"Envío")+'</span><span style="flex:1"></span>'+ic("chev","o-chev")+'</span>'+
+        '<span class="o-meta"><span class="pill s-'+esc(o.status)+'">'+esc(stLabel(o))+'</span><span class="pill">'+esc(PAY[o.payment_method]||o.payment_method)+'</span><span class="pill '+payCls+'">'+esc(PAYST[pay]||pay)+'</span><span class="pill">'+(isPickup(o)?"Retiro":"Envío")+'</span>'+(o.is_test?'<span class="pill s-pendiente">PRUEBA</span>':"")+'<span style="flex:1"></span>'+ic("chev","o-chev")+'</span>'+
       '</button>'+
       (open ?
       '<div class="o-body">'+steps(o)+
@@ -729,55 +723,69 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
     },function(){ setState("bad","Sin conexión"); toast("Sin conexión. No se guardó.","bad"); renderOrders(); });
   }
   $("q").addEventListener("input",function(){ filt.q = this.value; renderOrders(); });
-  $("refresh").addEventListener("click",function(){ (view==="orders"?loadOrders(false):loadReviews()).then(function(){ toast("Actualizado."); }); });
+  $("refresh").addEventListener("click",function(){ (view==="orders"?loadOrders(false):(view==="carts"?loadCarts():loadReviews())).then(function(){ toast("Actualizado."); }); });
   $("metrics").addEventListener("keydown",function(e){ if((e.key==="Enter"||e.key===" ") && e.target.getAttribute("data-st")){ e.preventDefault(); filt.st = e.target.getAttribute("data-st"); renderOrders(); } });
 
-  /* ================== FOTOS (igual que en admin_1: se achican y se suben a Supabase Storage) ================== */
-  function pathOf(url){ var m = String(url||"").match(/\/storage\/v1\/object\/public\/product-images\/(.+?)(?:\?.*)?$/); return m ? decodeURIComponent(m[1]) : null; }
-  function removePath(p){ if(p && p.indexOf(RV_FOLDER+"/")===0) sb.storage.from(BUCKET).remove([p]); }   // solo toca la carpeta de reseñas
-  function isImage(f){ return /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|gif|avif)$/i.test(f.name); }
-  function upErr(err){
-    var m = (err && err.message) || "";
-    return /row-level|policy|unauthor/i.test(m) ? "Sin permiso: volvé a iniciar sesión" : (/bucket/i.test(m) ? "Falta el bucket "+BUCKET : (m || "No se pudo subir"));
+  /* ================== CARRITOS ================== */
+  var carts = [], cartFilt = "contactar", IDLE_MIN = 20;
+  var minsAgo = function(s){ return Math.round((Date.now() - new Date(s).getTime())/60000); };
+  function ago(s){
+    var m = minsAgo(s); if(m < 1) return "recién"; if(m < 60) return "hace "+m+" min";
+    var h = Math.round(m/60); if(h < 24) return "hace "+h+" h"; return "hace "+Math.round(h/24)+" d";
   }
-  function loadBitmap(file){
-    if(window.createImageBitmap) return createImageBitmap(file,{imageOrientation:"from-image"}).catch(function(){ return viaImg(file); });
-    return viaImg(file);
-  }
-  function viaImg(file){
-    return new Promise(function(res,rej){
-      var u = URL.createObjectURL(file), im = new Image();
-      im.onload = function(){ URL.revokeObjectURL(u); res(im); };
-      im.onerror = function(){ URL.revokeObjectURL(u); rej(new Error("No se pudo leer la foto")); };
-      im.src = u;
+  var cartGroup = function(x){ return x.status==="convertido" ? "convertidos" : (x.status==="contactado" ? "contactados" : (minsAgo(x.updated_at) >= IDLE_MIN ? "contactar" : "activos")); };
+  function loadCarts(){
+    return sb.from("carts").select("*").eq("is_test",false).order("updated_at",{ascending:false}).limit(300).then(function(r){
+      if(r.error){ $("clist").innerHTML = '<div class="empty">'+ic("warn")+'<div>No se pudieron cargar los carritos.<br>'+esc(r.error.message||"")+'</div></div>'; return; }
+      carts = r.data||[]; renderCarts();
     });
   }
-  function toBlob(cv,type,q){ return new Promise(function(res){ cv.toBlob(res,type,q); }); }
-  // Achica a 1000 px de lado mayor y convierte a WebP (calidad 0.82). Si el navegador no sabe WebP, usa JPG.
-  function compress(file){
-    return loadBitmap(file).then(function(bmp){
-      var w = bmp.width || bmp.naturalWidth, h = bmp.height || bmp.naturalHeight;
-      if(!w || !h) throw new Error("No se pudo leer la foto");
-      var sc = Math.min(1,MAX_SIDE/Math.max(w,h)), cw = Math.max(1,Math.round(w*sc)), ch = Math.max(1,Math.round(h*sc));
-      var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
-      var cx = cv.getContext("2d"); cx.imageSmoothingQuality = "high"; cx.drawImage(bmp,0,0,cw,ch);
-      if(bmp.close) bmp.close();
-      return toBlob(cv,"image/webp",QUALITY).then(function(b){
-        if(b && b.type==="image/webp") return {blob:b,ext:"webp",type:"image/webp"};
-        return toBlob(cv,"image/jpeg",.85).then(function(j){ if(!j) throw new Error("No se pudo comprimir"); return {blob:j,ext:"jpg",type:"image/jpeg"}; });
+  function cartMsg(x){
+    var first = String(x.name||"").trim().split(/\s+/)[0] || "";
+    var list = (x.items||[]).map(function(i){ return i.qty+"x "+i.name+" (talle "+i.size+")"; }).join(", ");
+    return "Hola"+(first?" "+first:"")+"! Te escribimos de Gambeta Club. Vimos que dejaste en tu carrito: "+list+". ¿Te quedó alguna duda con el talle o el envío? Si querés, te ayudamos a cerrar el pedido por acá.";
+  }
+  function renderCarts(){
+    var cnt = {contactar:0, contactados:0, convertidos:0, activos:0};
+    carts.forEach(function(x){ cnt[cartGroup(x)]++; });
+    $("cartDot").textContent = cnt.contactar ? cnt.contactar : ""; $("cartDot").className = cnt.contactar ? "dot" : "";
+    $("cartCount").textContent = carts.length+" en total";
+    var chips = [["contactar","Para contactar ("+cnt.contactar+")"],["activos","Comprando ahora ("+cnt.activos+")"],["contactados","Contactados ("+cnt.contactados+")"],["convertidos","Compraron ("+cnt.convertidos+")"]];
+    $("cartChips").innerHTML = chips.map(function(c){ return '<button type="button" class="chip" data-v="'+c[0]+'" aria-pressed="'+(cartFilt===c[0])+'">'+esc(c[1])+'</button>'; }).join("");
+    $("cartChips").querySelectorAll(".chip").forEach(function(b){ b.addEventListener("click",function(){ cartFilt = b.getAttribute("data-v"); renderCarts(); }); });
+    var list = carts.filter(function(x){ return cartGroup(x)===cartFilt; });
+    if(!list.length){ $("clist").innerHTML = '<div class="empty">'+ic("shirt")+'<div><strong style="color:var(--chalk)">No hay carritos en esta lista.</strong></div></div>'; return; }
+    $("clist").innerHTML = list.map(function(x){
+      var wa = waNumber(x.phone), items = (x.items||[]).map(function(i){ return '<li><span><b>'+esc(i.name)+'</b> · talle '+esc(i.size)+' × '+esc(i.qty)+'</span><span>'+money((i.unit_price||0)*(i.qty||0))+'</span></li>'; }).join("");
+      return '<article class="ocard" data-id="'+x.id+'"><div class="o-sum" style="cursor:default"><span><span class="o-ref">'+esc(x.name||"Sin nombre")+'</span><span class="o-who" style="display:block">'+esc(x.phone||"")+' · '+ago(x.updated_at)+'</span></span><span class="o-total">'+money(x.total)+'</span></div>'+
+        '<div class="o-body"><ul class="o-items">'+items+'</ul><div class="o-act">'+
+        (wa?'<a class="btn btn-primary btn-sm" data-act="cwa" href="https://wa.me/'+wa+'?text='+encodeURIComponent(cartMsg(x))+'" target="_blank" rel="noopener">Escribirle por WhatsApp</a>':'<span class="o-wait">Teléfono no válido para WhatsApp</span>')+
+        (x.status==="abierto"?'<button type="button" class="btn btn-line btn-sm" data-act="cdone">Marcar como contactado</button>':'')+
+        '<button type="button" class="btn btn-danger btn-sm" data-act="cdel">'+ic("trash")+'Borrar</button></div></div></article>';
+    }).join("");
+  }
+  $("clist").addEventListener("click",function(ev){
+    var b = ev.target.closest("[data-act]"); if(!b) return;
+    var id = b.closest(".ocard").getAttribute("data-id"), x = carts.filter(function(c){ return c.id===id; })[0]; if(!x) return;
+    var act = b.getAttribute("data-act");
+    function mark(){
+      sb.from("carts").update({status:"contactado",contacted_at:new Date().toISOString()}).eq("id",id).select().then(function(r){
+        if(r.error){ toast("No se pudo guardar: "+r.error.message,"bad"); return; }
+        x.status = "contactado"; renderCarts();
       });
-    });
-  }
-  // Comprime, sube y devuelve {path, url pública}
-  function uploadPhoto(file){
-    return compress(file).then(function(c){
-      var path = RV_FOLDER+"/"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7)+"."+c.ext;
-      return sb.storage.from(BUCKET).upload(path,c.blob,{contentType:c.type,cacheControl:"31536000",upsert:false}).then(function(r){
-        if(r.error) throw r.error;
-        return {path:path,url:sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl};
+    }
+    if(act==="cwa"){ if(x.status==="abierto") setTimeout(mark,400); return; }
+    if(act==="cdone"){ mark(); return; }
+    if(act==="cdel"){
+      askConfirm({title:"Borrar carrito",text:"Se elimina de la lista.",ok:"Borrar",danger:true}).then(function(ok){
+        if(!ok) return;
+        sb.from("carts").delete().eq("id",id).then(function(r){
+          if(r.error){ toast("No se pudo borrar: "+r.error.message,"bad"); return; }
+          carts = carts.filter(function(c){ return c.id!==id; }); renderCarts();
+        });
       });
-    });
-  }
+    }
+  });
 
   /* ================== RESEÑAS ================== */
   function loadReviews(){
@@ -790,128 +798,49 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
     $("rvCount").textContent = reviews.filter(function(x){ return x.active; }).length+" activas de "+reviews.length;
     if(!reviews.length){ $("rvList").innerHTML = '<div class="empty">'+ic("star")+'<div>Todavía no cargaste reseñas.</div></div>'; return; }
     $("rvList").innerHTML = reviews.map(function(x){
-      return '<div class="rv'+(x.active?"":" off")+(x._busy?" busy":"")+'" data-id="'+x.id+'"><div class="rv-who">'+
-        (x.photo_url ? '<img class="rv-th" src="'+esc(x.photo_url)+'" alt="Foto de '+esc(x.name)+'" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '')+
-        '<div><b>'+esc(x.name)+'</b> <small>'+esc(x.city||"")+(x.active?"":" · oculta")+'</small></div></div>'+
-        '<div class="rv-act"><button type="button" class="btn btn-line btn-sm" data-r="photo">'+(x._busy ? "Subiendo..." : (x.photo_url ? "Cambiar foto" : "Agregar foto"))+'</button>'+
-        (x.photo_url ? '<button type="button" class="icon-btn" data-r="rmphoto" aria-label="Quitar foto">'+ic("x")+'</button>' : '')+
-        '<button type="button" class="btn btn-line btn-sm" data-r="toggle">'+(x.active?"Ocultar":"Mostrar")+'</button><button type="button" class="icon-btn" data-r="del" aria-label="Borrar reseña">'+ic("trash")+'</button></div><p>'+esc(x.body)+'</p></div>';
+      return '<div class="rv'+(x.active?"":" off")+'" data-id="'+x.id+'"><div><b>'+esc(x.name)+'</b> <small>'+esc(x.city||"")+(x.active?"":" · oculta")+'</small></div>'+
+        '<div class="rv-act"><button type="button" class="btn btn-line btn-sm" data-r="toggle">'+(x.active?"Ocultar":"Mostrar")+'</button><button type="button" class="icon-btn" data-r="del" aria-label="Borrar reseña">'+ic("trash")+'</button></div><p>'+esc(x.body)+'</p></div>';
     }).join("");
   }
-
-  // --- Foto de una reseña que ya existe (agregar, cambiar o quitar) ---
-  var rowTarget = null;
-  $("rvRowFile").addEventListener("change",function(){
-    var f = [].slice.call(this.files).filter(isImage)[0], id = rowTarget; this.value = ""; rowTarget = null;
-    var x = reviews.filter(function(r){ return r.id===id; })[0];
-    if(!x) return;
-    if(!f){ toast("Elegí un archivo de imagen.","bad"); return; }
-    var oldUrl = x.photo_url, up = null;
-    x._busy = true; renderReviews();
-    uploadPhoto(f).then(function(r){
-      up = r;
-      return sb.from("testimonials").update({photo_url:r.url}).eq("id",id).select("id");
-    }).then(function(r){
-      if(r.error) throw r.error;
-      if(!r.data || !r.data.length) throw new Error("No se pudo guardar: sin permiso en la tabla testimonials");
-      x.photo_url = up.url; removePath(pathOf(oldUrl)); toast("Foto guardada. Ya se ve en la tienda.","good");
-    }).catch(function(err){
-      if(up) removePath(up.path);                 // no queda un archivo suelto si no se pudo guardar
-      toast(upErr(err),"bad");
-    }).then(function(){ x._busy = false; renderReviews(); });
-  });
   $("rvList").addEventListener("click",function(ev){
     var b = ev.target.closest("[data-r]"); if(!b) return;
-    var id = b.closest(".rv").getAttribute("data-id"), x = reviews.filter(function(r){ return r.id===id; })[0], act = b.getAttribute("data-r"); if(!x) return;
-    if(act==="photo"){ rowTarget = id; $("rvRowFile").click(); return; }
-    if(act==="rmphoto"){
-      askConfirm({title:"Quitar foto",text:"La reseña queda sin foto en la tienda.",ok:"Quitar"}).then(function(ok){
-        if(!ok) return;
-        sb.from("testimonials").update({photo_url:null}).eq("id",id).select("id").then(function(r){
-          if(r.error || !r.data || !r.data.length){ toast("No se pudo quitar: "+(r.error ? r.error.message : "sin permiso"),"bad"); return; }
-          removePath(pathOf(x.photo_url)); x.photo_url = null; renderReviews(); toast("Foto quitada.");
-        });
-      });
-      return;
-    }
-    if(act==="toggle"){
+    var id = b.closest(".rv").getAttribute("data-id"), x = reviews.filter(function(r){ return r.id===id; })[0]; if(!x) return;
+    if(b.getAttribute("data-r")==="toggle"){
       sb.from("testimonials").update({active:!x.active}).eq("id",id).select().then(function(r){
         if(r.error){ toast("No se pudo guardar: "+r.error.message,"bad"); return; }
         x.active = !x.active; renderReviews();
       });
     } else {
-      askConfirm({title:"Borrar reseña",text:"Se elimina de la tienda y del panel, con su foto.",ok:"Borrar",danger:true}).then(function(ok){
+      askConfirm({title:"Borrar reseña",text:"Se elimina de la tienda y del panel.",ok:"Borrar",danger:true}).then(function(ok){
         if(!ok) return;
         sb.from("testimonials").delete().eq("id",id).then(function(r){
           if(r.error){ toast("No se pudo borrar: "+r.error.message,"bad"); return; }
-          removePath(pathOf(x.photo_url));
           reviews = reviews.filter(function(r2){ return r2.id!==id; }); renderReviews();
         });
       });
     }
   });
-
-  // --- Foto de una reseña nueva (formulario) ---
-  var rvImg = null;   // {url, path, state:"up"|"ok"|"bad", msg, local}
-  function renderRvPhoto(){
-    $("rvDrop").classList.toggle("full",!!rvImg);
-    $("rvPhotos").innerHTML = !rvImg ? "" :
-      '<li class="ph '+(rvImg.state==="up"?"up":rvImg.state==="bad"?"bad":"")+'"><img src="'+esc(rvImg.local||rvImg.url)+'" alt="Foto de la reseña">'+
-      (rvImg.state==="up" ? '<div class="ov"><div><div class="spin"></div>Subiendo</div></div>' : '')+
-      (rvImg.state==="bad" ? '<div class="ov">'+esc(rvImg.msg||"No se pudo subir")+'</div>' : '')+
-      '<div class="bar"><button type="button" data-rvph="del" aria-label="Quitar foto">'+ic("trash")+'</button></div></li>';
-  }
-  function setRvFile(files){
-    var f = [].slice.call(files).filter(isImage)[0];
-    if(!f){ if(files.length) $("rvPhErr").textContent = "Elegí un archivo de imagen."; return; }
-    $("rvPhErr").textContent = "";
-    if(rvImg){ if(rvImg.path) removePath(rvImg.path); if(rvImg.local) URL.revokeObjectURL(rvImg.local); }   // reemplaza la anterior
-    var mine = rvImg = {url:"",path:null,state:"up",msg:"",local:URL.createObjectURL(f)};
-    renderRvPhoto();
-    uploadPhoto(f).then(function(r){
-      if(rvImg!==mine){ removePath(r.path); return; }       // la quitaron mientras subía
-      mine.url = r.url; mine.path = r.path; mine.state = "ok"; URL.revokeObjectURL(mine.local); mine.local = null;
-    }).catch(function(err){
-      if(rvImg!==mine) return; mine.state = "bad"; mine.msg = upErr(err);
-    }).then(function(){ if(rvImg===mine) renderRvPhoto(); });
-  }
-  $("rvFile").addEventListener("change",function(){ setRvFile(this.files); this.value = ""; });
-  var rvDrop = $("rvDrop");
-  ["dragenter","dragover"].forEach(function(t){ rvDrop.addEventListener(t,function(e){ e.preventDefault(); rvDrop.classList.add("over"); }); });
-  ["dragleave","drop"].forEach(function(t){ rvDrop.addEventListener(t,function(e){ e.preventDefault(); rvDrop.classList.remove("over"); }); });
-  rvDrop.addEventListener("drop",function(e){ if(e.dataTransfer && e.dataTransfer.files) setRvFile(e.dataTransfer.files); });
-  $("rvPhotos").addEventListener("click",function(e){
-    if(!e.target.closest('[data-rvph="del"]') || !rvImg) return;
-    if(rvImg.path) removePath(rvImg.path);
-    if(rvImg.local) URL.revokeObjectURL(rvImg.local);
-    rvImg = null; $("rvPhErr").textContent = ""; renderRvPhoto();
-  });
   $("rvForm").addEventListener("submit",function(e){
     e.preventDefault();
-    var name = $("rvName").value.trim(), body = $("rvBody").value.trim(), btn = $("rvForm").querySelector('button[type="submit"]');
+    var name = $("rvName").value.trim(), body = $("rvBody").value.trim(), photo = $("rvPhoto").value.trim();
     $("rvErr").textContent = "";
     if(!name || !body){ $("rvErr").textContent = "Completá nombre y reseña."; return; }
-    if(rvImg && rvImg.state==="up"){ $("rvErr").textContent = "Esperá a que termine de subir la foto."; return; }
-    if(rvImg && rvImg.state==="bad"){ $("rvErr").textContent = "Quitá la foto con error o subila de nuevo."; return; }
-    var photo = rvImg ? rvImg.url : null;
-    btn.disabled = true;
-    sb.from("testimonials").insert({name:name,city:$("rvCity").value.trim()||null,body:body,photo_url:photo,active:true}).select().then(function(r){
-      btn.disabled = false;
-      if(r.error){ $("rvErr").textContent = "No se pudo guardar: "+r.error.message; return; }      // la foto queda cargada para reintentar
-      reviews = (r.data||[]).concat(reviews); rvImg = null; renderRvPhoto(); $("rvPhErr").textContent = "";
-      $("rvForm").reset(); renderReviews(); toast("Reseña agregada.");
-    },function(){ btn.disabled = false; $("rvErr").textContent = "Sin conexión. No se guardó."; });
+    if(photo && !/^https:\/\//i.test(photo)){ $("rvErr").textContent = "El link de la foto tiene que empezar con https://"; return; }
+    sb.from("testimonials").insert({name:name,city:$("rvCity").value.trim()||null,body:body,photo_url:photo||null,active:true}).select().then(function(r){
+      if(r.error){ $("rvErr").textContent = "No se pudo guardar: "+r.error.message; return; }
+      reviews = (r.data||[]).concat(reviews); $("rvForm").reset(); renderReviews(); toast("Reseña agregada.");
+    });
   });
 
   /* ================== PESTAÑAS ================== */
   function setView(v){
     view = v;
-    $("viewOrders").hidden = v!=="orders"; $("viewReviews").hidden = v!=="reviews";
-    if(v==="orders"){ $("tabOrders").setAttribute("aria-current","page"); $("tabReviews").removeAttribute("aria-current"); }
-    else { $("tabReviews").setAttribute("aria-current","page"); $("tabOrders").removeAttribute("aria-current"); }
+    $("viewOrders").hidden = v!=="orders"; $("viewCarts").hidden = v!=="carts"; $("viewReviews").hidden = v!=="reviews";
+    [["orders","tabOrders"],["carts","tabCarts"],["reviews","tabReviews"]].forEach(function(p){ if(p[0]===v) $(p[1]).setAttribute("aria-current","page"); else $(p[1]).removeAttribute("aria-current"); });
   }
   $("tabOrders").addEventListener("click",function(){ setView("orders"); });
   $("tabReviews").addEventListener("click",function(){ setView("reviews"); });
+  $("tabCarts").addEventListener("click",function(){ setView("carts"); });
   document.addEventListener("visibilitychange",function(){ if(!document.hidden && sb && !$("panel").hidden && view==="orders") loadOrders(false); });
 
   init();

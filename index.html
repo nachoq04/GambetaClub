@@ -601,6 +601,11 @@ footer .brand{color:var(--chalk);margin-right:0}
 .trk-bar i.on{background:var(--acc)}
 .trk-x{justify-self:end}
 .foot a#openTrack{cursor:pointer}
+
+.promo-hint{padding:9px 12px;border:1px dashed var(--line-2);border-radius:var(--r-s);font-size:.84rem;color:var(--chalk);text-align:center}
+
+.envbar{position:fixed;left:0;right:0;bottom:0;z-index:200;background:#ffc75a;color:#121212;font:700 .8rem/1.3 var(--f-body);text-align:center;padding:6px 10px calc(6px + env(safe-area-inset-bottom))}
+.note#phoneNote{font-size:.78rem}
 </style>
 </head>
 <body>
@@ -729,7 +734,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="cat-head">
           <div>
             <h2>Catálogo</h2>
-            <p class="sub">Elegí tu camiseta y tu talle. El pedido lo cerramos por WhatsApp. Pagando por transferencia tenés 5% de descuento en cada camiseta.</p>
+            <p class="sub">Elegí tu camiseta y tu talle. El pedido lo cerramos por WhatsApp. Pagando por transferencia tenés 5% de descuento en cada camiseta. Llevando 2 o más, 10% OFF, y con 3 el envío es gratis.</p>
             <span class="rule reveal-rule" id="rule" aria-hidden="true"></span>
           </div>
           <p class="count-label" id="countLabel" aria-live="polite"></p>
@@ -813,6 +818,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   </div>
 </dialog>
 
+<div class="envbar" id="envbar" hidden>ENTORNO DE PRUEBA. Los pedidos de acá no son reales ni descuentan stock.</div>
+
 <div class="scrim" id="scrim"></div>
 
 <div class="zoom" id="zoom" role="dialog" aria-modal="true" aria-label="Foto ampliada" inert>
@@ -882,6 +889,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
           <label for="phone">Teléfono (WhatsApp)</label>
           <input type="tel" id="phone" inputmode="tel" autocomplete="tel" placeholder="Con código de área, ej: 2964 520101" aria-describedby="e-phone" required>
           <p class="err" id="e-phone" role="alert"></p>
+          <p class="note" id="phoneNote">Guardamos tu carrito para ayudarte si no llegás a terminar la compra.</p>
         </div>
         <div class="field">
           <label for="delivery">Entrega</label>
@@ -926,9 +934,10 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
       </div>
     </div>
     <div class="d-foot">
+      <p class="promo-hint" id="promoHint" hidden></p>
       <div class="sum" id="sum" hidden>
         <div class="sum-row"><span>Camisetas</span><b id="subtotal">$0</b></div>
-        <div class="sum-row off" id="rowDisc" hidden><span>Transferencia (5%)</span><b id="disc"></b></div>
+        <div class="sum-row off" id="rowDisc" hidden><span id="discLabel">Transferencia (5%)</span><b id="disc"></b></div>
         <div class="sum-row"><span id="shipLabel">Envío</span><b id="shipAmt">$0</b></div>
       </div>
       <div class="total-row"><span>Total</span><strong id="total">$0</strong></div>
@@ -956,6 +965,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var MP_URL = "/api/mercadopago"; // función serverless de Vercel (api/mercadopago.js)
   var SIZE_GUIDE = "talles.jpg";   // tabla de medidas (versión jugador)
   var LOW_STOCK = 3;               // desde esta cantidad por talle se muestra "Quedan N"
+  var CART_URL = "/api/carrito";   // guarda el carrito de quien dejó su teléfono (api/carrito.js)
   var PEDIDO_URL = "/api/pedido";  // registra pedidos por transferencia o efectivo y consulta el estado de un pago (api/pedido.js)
   var GA_ID = "";       // Solo si NO usás Tag Manager: Google Analytics 4 directo, ej: "G-XXXXXXXXXX"
   var PIXEL_ID = "";    // Solo si NO usás Tag Manager: Meta Pixel directo, ej: "1234567890"
@@ -987,7 +997,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var FAQS = [
     {q:"¿Cómo hago mi pedido?", a:"Elegí tu camiseta y tu talle, sumala al carrito y completá nombre, entrega y pago. Si pagás con Mercado Pago, lo hacés online; con transferencia o efectivo, el pedido se cierra por WhatsApp."},
     {q:"¿Qué formas de pago hay?", a:"Mercado Pago (tarjeta o dinero en cuenta), transferencia o efectivo. Con transferencia o efectivo, los datos te los pasamos por WhatsApp al confirmar el pedido."},
-    {q:"¿Hay promociones?", a:"Las promos vigentes se ven en cada camiseta con el precio anterior tachado y la etiqueta de la oferta. Si pagás por transferencia, el 5% se suma sobre el precio promocional."},
+    {q:"¿Hay promociones?", a:"Las promos vigentes se ven en cada camiseta con el precio anterior tachado y la etiqueta de la oferta. Si pagás por transferencia, el 5% se suma sobre el precio promocional. Además, llevando 2 o más camisetas tenés 10% de descuento, y desde 3 camisetas el envío es gratis. El 10% no se suma al 5% de transferencia: se aplica el mayor."},
     {q:"¿Hay descuento por transferencia?", a:"Sí, 5% de descuento sobre el precio final de cada camiseta si pagás por transferencia. Lo ves reflejado en el detalle de cada camiseta y en tu carrito al elegir Transferencia."},
     {q:"¿Hacen envíos?", a:"Sí, enviamos por Correo Argentino a todo el país, a sucursal o a domicilio. Cotizás el costo con tu código postal en el carrito. Dentro de Villa Libertador San Martín el envío tiene una tarifa propia. También podés retirar sin cargo en Villa Libertador San Martín (Entre Ríos)."},
     {q:"¿Dónde puedo retirar?", a:"En Villa Libertador San Martín (Entre Ríos). Coordinamos punto y horario por WhatsApp."},
@@ -1093,7 +1103,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var transferPrice = function(n){ return Math.round(n * (1 - TRANSFER_OFF)); };
   var isTransfer = function(){ return $("payment").value === "Transferencia"; };
   var basePrice = function(p){ return p.promo || p.price; };
-  var unit = function(p){ return isTransfer() ? transferPrice(basePrice(p)) : basePrice(p); };
+  // Promos por cantidad: 10% desde 2 camisetas y envío gratis desde 3. El 10% no se suma al 5% de transferencia: rige el mayor.
+  var BULK_MIN = 2, BULK_OFF = 0.10, FREE_SHIP_MIN = 3;
+  var isBulk = function(){ return count() >= BULK_MIN; };
+  var freeShip = function(){ return count() >= FREE_SHIP_MIN; };
+  var unit = function(p){ return isBulk() ? Math.round(basePrice(p) * (1 - BULK_OFF)) : (isTransfer() ? transferPrice(basePrice(p)) : basePrice(p)); };
   var priceHtml = function(p){ return p.promo ? '<s>'+money(p.price)+'</s>'+money(p.promo) : money(p.price); };
   var total = function(){ return cart.reduce(function(s,i){ return s + unit(byId(i.id)) * i.qty; },0); };
   var fullTotal = function(){ return cart.reduce(function(s,i){ return s + basePrice(byId(i.id)) * i.qty; },0); };
@@ -1104,11 +1118,36 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var isShip = function(){ return $("delivery").value === ENVIO; };
   var selRate = function(){ return isShip() && ship.sel ? ship.options.filter(function(o){ return o.type===ship.sel; })[0] || null : null; };
   var shipStale = function(){ return isShip() && ship.options.length > 0 && ship.qty !== count(); };
-  var shipCost = function(){ var r = selRate(); return r ? r.price : 0; };
+  var shipCost = function(){ var r = selRate(); return r ? (freeShip() ? 0 : r.price) : 0; };
   var grandTotal = function(){ return total() + shipCost(); };
   var count = function(){ return cart.reduce(function(s,i){ return s + i.qty; },0); };
   var uniqueIds = function(){ var a = []; cart.forEach(function(i){ if(a.indexOf(i.id)<0) a.push(i.id); }); return a; };
-  function save(){ try{ localStorage.setItem("gambeta_cart_v5",JSON.stringify(cart)); }catch(e){} }
+  function save(){ try{ localStorage.setItem("gambeta_cart_v5",JSON.stringify(cart)); }catch(e){} queueCartSync(); }
+  // Carrito en el servidor (solo con teléfono cargado): permite escribirle a quien no cerró la compra
+  var sidCache = "";
+  function sid(){
+    if(sidCache) return sidCache;
+    try{ sidCache = localStorage.getItem("gambeta_sid") || ""; }catch(e){}
+    if(!/^[A-Za-z0-9_-]{10,40}$/.test(sidCache)){
+      var a = new Uint8Array(12); (window.crypto || {getRandomValues:function(x){ for(var i=0;i<x.length;i++) x[i]=Math.floor(Math.random()*256); }}).getRandomValues(a);
+      sidCache = [].map.call(a,function(b){ return (b%36).toString(36); }).join("") + Date.now().toString(36);
+      try{ localStorage.setItem("gambeta_sid", sidCache); }catch(e){}
+    }
+    return sidCache;
+  }
+  var cartSyncT = 0, cartSynced = "";
+  function queueCartSync(){
+    clearTimeout(cartSyncT);
+    cartSyncT = setTimeout(function(){
+      var ph = $("phone") ? $("phone").value.trim() : "";
+      if(!cart.length || ph.replace(/\D/g,"").length < 8) return;
+      var items = cart.map(function(i){ return {id:i.id, size:i.size, quantity:i.qty}; });
+      var body = {session:sid(), name:$("name").value.trim(), phone:ph, items:items}, sig = JSON.stringify(body);
+      if(sig === cartSynced) return;
+      cartSynced = sig;
+      fetch(CART_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body:sig, keepalive:true}).catch(function(){ cartSynced = ""; });
+    }, 2500);
+  }
 
   function reconcileCart(){
     cart = cart.filter(function(i){
@@ -1434,10 +1473,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   }
 
   /* ================== CARRITO ================== */
+  function renderPromoHint(){
+    var n = count(), el = $("promoHint"), t = "";
+    if(n === 1) t = "Llevá 2 camisetas y tenés 10% OFF. Con 3, el envío es gratis.";
+    else if(n === 2) t = "Ya tenés 10% OFF. Sumá 1 camiseta más y el envío es gratis.";
+    else if(n >= 3) t = "Tenés 10% OFF y envío gratis.";
+    el.textContent = t; el.hidden = !t;
+  }
   function updatePayNote(){
     var pay = $("payment").value, off = money(transferTotal());
     $("payNote").textContent = !cart.length ? "" :
-      pay==="Transferencia" ? "5% de descuento en las camisetas. No aplica al costo de envío."
+      isBulk() ? (pay ? "Ya tenés 10% de descuento por llevar 2 o más. No se suma al 5% de transferencia." : "")
+      : pay==="Transferencia" ? "5% de descuento en las camisetas. No aplica al costo de envío."
       : pay===MP ? "Pagás en Mercado Pago. Con transferencia las camisetas salen " + off + " (5% OFF)."
       : pay==="Efectivo" ? "Con transferencia las camisetas salen " + off + " (5% OFF)." : "";
   }
@@ -1476,16 +1523,18 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     $("fields").hidden = !cart.length;
     var t = total(), full = fullTotal(), tr = isTransfer();
     $("subtotal").textContent = money(full);
-    $("rowDisc").hidden = !(tr && full > t);
+    $("rowDisc").hidden = !((tr || isBulk()) && full > t);
+    $("discLabel").textContent = isBulk() ? "Descuento por 2 o más camisetas (10%)" : "Transferencia (5%)";
     $("disc").textContent = "−" + money(full - t);
+    renderPromoHint();
     renderShip();
     var sr = selRate();
     $("shipLabel").textContent = isShip() ? "Envío" + (sr ? " (" + (sr.type==="S" ? "sucursal" : "domicilio") + ")" : "")
       : (!$("delivery").value ? "Entrega" : "Retiro");
-    $("shipAmt").textContent = isShip() ? (sr && !shipStale() ? money(sr.price) : "A cotizar")
+    $("shipAmt").textContent = isShip() ? (sr && !shipStale() ? (freeShip() ? "Gratis" : money(sr.price)) : "A cotizar")
       : ($("delivery").value ? "Sin costo" : "A elegir");
     $("total").textContent = money(t + (shipStale() ? 0 : shipCost()));
-    $("sum").hidden = !cart.length || !(tr || isShip());
+    $("sum").hidden = !cart.length || !(tr || isBulk() || isShip());
     var mp = $("payment").value === MP;
     $("send").disabled = !cart.length || paying || (isShip() && (ship.loading || shipStale()));
     $("send").setAttribute("aria-busy", paying ? "true" : "false");
@@ -1509,11 +1558,11 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     $("quoteLabel").textContent = ship.loading ? "Cotizando…" : (ship.options.length ? "Actualizar" : "Cotizar");
     $("quote").setAttribute("aria-busy", ship.loading ? "true" : "false");
     $("shipBusy").hidden = !(busy && ship.options.length);
-    var key = ship.options.map(function(o){ return o.type + o.price; }).join("|");
+    var key = ship.options.map(function(o){ return o.type + o.price; }).join("|") + (freeShip() ? "|free" : "");
     if(key !== ship.key){ // solo se reconstruye si cambian las opciones, así no se pierde el foco al elegir
       ship.key = key;
       $("rates").innerHTML = ship.options.map(function(o){
-        return '<label class="rate"><input type="radio" name="rate" value="'+o.type+'"><span class="r-t"><b>'+(o.local ? "En Libertador San Martín" : (o.type==="S" ? "A sucursal" : "A domicilio"))+'</b><small>'+((o.local ? 'Entrega en la ciudad' : 'Correo Argentino'+(o.product ? ' · '+esc(o.product) : ''))+(o.eta ? ' · '+esc(o.eta) : ''))+'</small></span><span class="r-p">'+money(o.price)+'</span></label>';
+        return '<label class="rate"><input type="radio" name="rate" value="'+o.type+'"><span class="r-t"><b>'+(o.local ? "En Libertador San Martín" : (o.type==="S" ? "A sucursal" : "A domicilio"))+'</b><small>'+((o.local ? 'Entrega en la ciudad' : 'Correo Argentino'+(o.product ? ' · '+esc(o.product) : ''))+(o.eta ? ' · '+esc(o.eta) : ''))+'</small></span><span class="r-p">'+(freeShip() ? '<s style="color:var(--mute);font-weight:400;margin-right:6px">'+money(o.price)+'</s>Gratis' : money(o.price))+'</span></label>';
       }).join("");
     }
     [].forEach.call($("rates").querySelectorAll("input"), function(r){ r.checked = r.value === ship.sel; });
@@ -1620,12 +1669,12 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     if(payment === MP){
       if(paying) return;
       var order = {name:name, lines:lines, sub:total(), delivery:delivery, at:Date.now(),
-        ship: envio ? sr.label + ", CP " + ship.cp + " - " + money(sr.price) : "",
+        ship: envio ? sr.label + ", CP " + ship.cp + " - " + (freeShip() ? "gratis" : money(sr.price)) : "",
         addr: envio ? (sr.type==="D" ? "Dirección: " : "Destino: ") + address : ""};
       paying = true; renderCart();
       track("begin_checkout", {value:grandTotal(), currency:"ARS"});
       fetch(MP_URL, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({
-          name:name, phone:phone, address: envio ? address : "", delivery: envio ? "envio" : "retiro", deliveryLabel: delivery,
+          name:name, phone:phone, address: envio ? address : "", delivery: envio ? "envio" : "retiro", deliveryLabel: delivery, cartSession: sid(),
           items:cart.map(function(i){ return {id:i.id, size:i.size, quantity:i.qty}; }),
           shipping: envio ? {cp:ship.cp, type:sr.type} : null })})
         .then(function(r){ return r.json().then(function(j){ return {ok:r.ok, j:j}; }); })
@@ -1645,9 +1694,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 
     // Pedido por WhatsApp (efectivo o transferencia)
     var msg = "Hola, mi nombre es " + name + ". Quiero este pedido:\n" + lines +
-              "\nSubtotal camisetas: " + money(total()) + (isTransfer() ? " (incluye 5% de descuento por transferencia)" : "");
+              "\nSubtotal camisetas: " + money(total()) + (isBulk() ? " (incluye 10% de descuento por 2 o más camisetas)" : (isTransfer() ? " (incluye 5% de descuento por transferencia)" : ""));
     if(envio){
-      msg += "\nEnvío: " + sr.label + ", CP " + ship.cp + " - " + money(sr.price) + (ship.source === "fallback" ? " (tarifa estimada)" : "") +
+      msg += "\nEnvío: " + sr.label + ", CP " + ship.cp + " - " + (freeShip() ? "gratis" : money(sr.price)) + (ship.source === "fallback" ? " (tarifa estimada)" : "") +
              "\n" + (sr.type==="D" ? "Dirección: " : "Destino: ") + address;
     } else {
       msg += "\nEntrega: " + delivery + " (sin costo)";
@@ -1668,7 +1717,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     var ctl = typeof AbortController !== "undefined" ? new AbortController() : null;
     var to = setTimeout(function(){ if(ctl) ctl.abort(); go(""); }, 4500);
     fetch(PEDIDO_URL, {method:"POST", headers:{"Content-Type":"application/json"}, signal: ctl ? ctl.signal : undefined, body:JSON.stringify({
-        name:name, phone:phone, address: envio ? address : "", payment: payment === "Transferencia" ? "transferencia" : "efectivo",
+        name:name, phone:phone, address: envio ? address : "", cartSession: sid(), payment: payment === "Transferencia" ? "transferencia" : "efectivo",
         delivery: envio ? "envio" : "retiro", deliveryLabel: delivery,
         items:cart.map(function(i){ return {id:i.id, size:i.size, quantity:i.qty}; }),
         shipping: envio ? {cp:ship.cp, type:sr.type} : null })})
@@ -2185,6 +2234,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
   }
   loadCust();
+  if(/\.vercel\.app$/.test(location.hostname) && location.hostname !== "gambetaclub.vercel.app") $("envbar").hidden = false;   // despliegue de prueba de Vercel
+  ["phone","name"].forEach(function(id){ $(id).addEventListener("input", queueCartSync); });
   /* ================== SEGUIMIENTO DEL PEDIDO ================== */
   var TRK_STEPS = {pendiente:0, pagado:1, en_camino:2, entregado:3};
   function trkText(j){
