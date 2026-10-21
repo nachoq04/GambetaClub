@@ -403,8 +403,12 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
           <div class="field"><label for="rvName">Nombre</label><input type="text" id="rvName" maxlength="60" autocomplete="off" placeholder="Ej: Mati R."></div>
           <div class="field"><label for="rvCity">Ciudad (opcional)</label><input type="text" id="rvCity" maxlength="60" autocomplete="off" placeholder="Ej: Concordia"></div>
           <div class="field full"><label for="rvBody">Reseña</label><textarea id="rvBody" maxlength="400" placeholder="Lo que dijo el cliente, con sus palabras"></textarea></div>
-          <div class="field full"><label for="rvPhoto">Link de foto (opcional)</label><input type="url" id="rvPhoto" inputmode="url" autocomplete="off" placeholder="https://..."></div>
-        </div>
+         <div class="field">
+        <span class="lbl" id="phL">Foto</span>
+        <label class="drop" id="drop"><svg class="i" aria-hidden="true"><use href="#i-upload"/></svg><span><strong>Elegí la foto</strong> o arrastrala acá</span><span style="font-size:.82rem">Se achican solas y se guardan en WebP (máx. 1000 px).</span><input type="file" id="fFiles" accept="image/*" multiple aria-labelledby="phL"></label>
+        <ul class="photos" id="photos"></ul>
+        <p class="err" id="ePhotos" role="alert"></p>
+      </div>
         <p class="err" id="rvErr" role="alert"></p>
         <button class="btn btn-primary" type="submit">Agregar reseña</button>
       </form>
