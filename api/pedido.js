@@ -9,6 +9,7 @@
  * La tienda llama a esta función antes de abrir WhatsApp. Si falla, el cliente igual puede seguir por WhatsApp.
  */
 var O = require("./_orders.js");
+var limited = require("./_limit.js");
 
 function clean(s, n) { return String(s == null ? "" : s).replace(/[\u0000-\u001f]/g, " ").trim().slice(0, n); }
 
@@ -16,6 +17,7 @@ module.exports = async function handler(req, res) {
   res.setHeader("Cache-Control", "no-store");
   if (req.method === "OPTIONS") { res.setHeader("Allow", "GET, POST, OPTIONS"); return res.status(204).end(); }
 
+  if (limited(req, res, "pedido-" + req.method, req.method === "GET" ? 30 : 8, 60000)) return;
   try {
     if (req.method === "GET") {
       var ref = clean(req.query && req.query.ref, 40);
