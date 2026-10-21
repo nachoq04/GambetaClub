@@ -50,7 +50,7 @@ module.exports = async function handler(req, res) {
       if (d.picture) item.picture_url = d.picture;
       return item;
     });
-    if (shipping) {
+    if (shipping && shipping.price > 0) {          // con envío gratis no se suma el ítem (Mercado Pago no acepta precio 0)
       items.push({ id: "ENVIO-" + shipping.type, title: (shipping.label + " (CP " + shipping.cp + ")").slice(0, 250),
                    category_id: "services", quantity: 1, currency_id: "ARS", unit_price: shipping.price });
     }
@@ -85,7 +85,7 @@ module.exports = async function handler(req, res) {
     // Se guarda recién con la preferencia creada, así no quedan pedidos fantasma
     var envio = !!shipping || body.delivery === "envio";
     await O.recordOrder({
-      ref: ref, name: name || "Sin nombre", phone: phone, delivery: envio ? "envio" : "retiro",
+      ref: ref, cart_session: clean(body.cartSession, 40), name: name || "Sin nombre", phone: phone, delivery: envio ? "envio" : "retiro",
       delivery_label: clean(body.deliveryLabel, 80) || (envio ? "Envío" : "Retiro"),
       ship_cp: shipping ? shipping.cp : "", ship_type: shipping ? shipping.type : "", ship_label: shipping ? shipping.label : "", address: address,
       items: cart.details.map(function (d) { return { id: d.id, name: d.name, size: d.size, qty: d.qty, unit_price: d.unit }; }),

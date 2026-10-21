@@ -14,6 +14,8 @@ var SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsIn
 var TIMEOUT_MS = 8000;
 var MAX_LINES = 30, MAX_QTY = 20;
 var TRANSFER_OFF = 0.05;
+// Promos por cantidad (iguales en la tienda). El 10% NO se acumula con el 5% de transferencia: rige el mayor.
+var BULK_MIN = 2, BULK_OFF = 0.10, FREE_SHIP_MIN = 3;
 
 function fail(status, message) { var e = new Error(message); e.status = status; return e; }
 
@@ -76,7 +78,13 @@ async function buildCart(body) {
     details.push({ id: p.id, name: p.name, size: l.size, qty: l.qty, unit: unit, picture: p.images && /^https:\/\//.test(p.images[0] || "") ? p.images[0] : "" });
     shirts += l.qty; subtotal += unit * l.qty;
   });
-  return { details: details, shirts: shirts, subtotal: subtotal };
+  // Descuento por cantidad: 10% sobre cada camiseta desde BULK_MIN unidades
+  var bulk = shirts >= BULK_MIN;
+  if (bulk) {
+    subtotal = 0;
+    details.forEach(function (d) { d.unit = Math.round(d.unit * (1 - BULK_OFF)); subtotal += d.unit * d.qty; });
+  }
+  return { details: details, shirts: shirts, subtotal: subtotal, bulk: bulk };
 }
 
 /** Vuelve a cotizar el envío del lado del servidor. body.shipping = { cp, type: "S" | "D" } o null. */
@@ -88,13 +96,16 @@ async function buildShipping(body, shirts) {
   var q = await correo.quote(cp, shirts);
   var opt = q.options.filter(function (o) { return o.type === ship.type; })[0];
   if (!opt) throw fail(409, "No encontramos esa modalidad de envío para tu código postal. Volvé a cotizar.");
-  return { cp: cp, type: ship.type, price: opt.price, label: opt.label, source: q.source };
+  var free = shirts >= FREE_SHIP_MIN;   // envío gratis desde FREE_SHIP_MIN camisetas
+  return { cp: cp, type: ship.type, price: free ? 0 : opt.price, label: opt.label + (free ? " (gratis)" : ""), source: q.source, free: free };
 }
 
 function transferPrice(n) { return Math.round(n * (1 - TRANSFER_OFF)); }
 
 /* ---------- Supabase (funciones protegidas con ORDERS_SECRET) ---------- */
 function ordersEnabled() { return !!process.env.ORDERS_SECRET; }
+// En los despliegues de prueba de Vercel (Preview) los pedidos se marcan como "prueba": no descuentan stock y no cuentan en el panel.
+function isTest() { return !!process.env.VERCEL_ENV && process.env.VERCEL_ENV !== "production"; }
 
 async function rpc(fn, args) {
   var r = await timedFetch(SUPABASE_URL + "/rest/v1/rpc/" + fn, {
@@ -111,6 +122,7 @@ async function rpc(fn, args) {
 /** Guarda el pedido para el panel. Nunca rompe la compra: si falla, solo lo deja en el log. */
 async function recordOrder(order) {
   if (!ordersEnabled()) { console.warn("[pedidos] falta ORDERS_SECRET: el pedido " + order.ref + " no se guardó en el panel"); return false; }
+  order.is_test = isTest();
   try { await rpc("create_order", { p: order }); return true; }
   catch (e) { console.error("[pedidos] no se pudo guardar " + order.ref + ":", e.message); return false; }
 }
@@ -119,6 +131,6 @@ function newRef() { return "GC-" + Date.now().toString(36).toUpperCase() + Math.
 
 module.exports = {
   SUPABASE_URL: SUPABASE_URL, fail: fail, timedFetch: timedFetch, parseBody: parseBody, siteBase: siteBase,
-  buildCart: buildCart, buildShipping: buildShipping, transferPrice: transferPrice,
-  ordersEnabled: ordersEnabled, rpc: rpc, recordOrder: recordOrder, newRef: newRef
+  BULK_MIN: BULK_MIN, BULK_OFF: BULK_OFF, FREE_SHIP_MIN: FREE_SHIP_MIN, buildCart: buildCart, buildShipping: buildShipping, transferPrice: transferPrice,
+  ordersEnabled: ordersEnabled, isTest: isTest, rpc: rpc, recordOrder: recordOrder, newRef: newRef
 };
