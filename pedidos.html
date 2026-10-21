@@ -307,54 +307,6 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
 .o-chev{transition:transform 200ms var(--ease-out);color:var(--mute)}
 .ocard.open .o-chev{transform:rotate(90deg)}
 .o-wait{font-size:.82rem;color:var(--mute)}
-  
-  /* ================== FOTOS (igual que en admin_1: se achican y se suben a Supabase Storage) ================== */
-  function pathOf(url){ var m = String(url||"").match(/\/storage\/v1\/object\/public\/product-images\/(.+?)(?:\?.*)?$/); return m ? decodeURIComponent(m[1]) : null; }
-  function removePath(p){ if(p && p.indexOf(RV_FOLDER+"/")===0) sb.storage.from(BUCKET).remove([p]); }   // solo toca la carpeta de reseñas
-  function isImage(f){ return /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|gif|avif)$/i.test(f.name); }
-  function upErr(err){
-    var m = (err && err.message) || "";
-    return /row-level|policy|unauthor/i.test(m) ? "Sin permiso: volvé a iniciar sesión" : (/bucket/i.test(m) ? "Falta el bucket "+BUCKET : (m || "No se pudo subir"));
-  }
-  function loadBitmap(file){
-    if(window.createImageBitmap) return createImageBitmap(file,{imageOrientation:"from-image"}).catch(function(){ return viaImg(file); });
-    return viaImg(file);
-  }
-  function viaImg(file){
-    return new Promise(function(res,rej){
-      var u = URL.createObjectURL(file), im = new Image();
-      im.onload = function(){ URL.revokeObjectURL(u); res(im); };
-      im.onerror = function(){ URL.revokeObjectURL(u); rej(new Error("No se pudo leer la foto")); };
-      im.src = u;
-    });
-  }
-  function toBlob(cv,type,q){ return new Promise(function(res){ cv.toBlob(res,type,q); }); }
-  // Achica a MAX_SIDE px de lado mayor y convierte a WebP (calidad QUALITY). Si el navegador no sabe WebP, usa JPG.
-  function compress(file){
-    return loadBitmap(file).then(function(bmp){
-      var w = bmp.width || bmp.naturalWidth, h = bmp.height || bmp.naturalHeight;
-      if(!w || !h) throw new Error("No se pudo leer la foto");
-      var sc = Math.min(1,MAX_SIDE/Math.max(w,h)), cw = Math.max(1,Math.round(w*sc)), ch = Math.max(1,Math.round(h*sc));
-      var cv = document.createElement("canvas"); cv.width = cw; cv.height = ch;
-      var cx = cv.getContext("2d"); cx.imageSmoothingQuality = "high"; cx.drawImage(bmp,0,0,cw,ch);
-      if(bmp.close) bmp.close();
-      return toBlob(cv,"image/webp",QUALITY).then(function(b){
-        if(b && b.type==="image/webp") return {blob:b,ext:"webp",type:"image/webp"};
-        return toBlob(cv,"image/jpeg",.85).then(function(j){ if(!j) throw new Error("No se pudo comprimir"); return {blob:j,ext:"jpg",type:"image/jpeg"}; });
-      });
-    });
-  }
-  // Comprime, sube y devuelve {path, url pública}
-  function uploadPhoto(file){
-    return compress(file).then(function(c){
-      var path = RV_FOLDER+"/"+Date.now().toString(36)+"-"+Math.random().toString(36).slice(2,7)+"."+c.ext;
-      return sb.storage.from(BUCKET).upload(path,c.blob,{contentType:c.type,cacheControl:"31536000",upsert:false}).then(function(r){
-        if(r.error) throw r.error;
-        return {path:path,url:sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl};
-      });
-    });
-  }
-
 /* reseñas */
 .rv-form{display:grid;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px}
 .rv-list{display:grid;gap:10px;margin-top:6px}
@@ -362,7 +314,13 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
 .rv.off{opacity:.55}
 .rv p{grid-column:1/-1;color:var(--chalk);font-size:.95rem}
 .rv small{color:var(--mute)}
-.rv-act{display:flex;gap:6px}
+.rv-act{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:6px}
+.drop{position:relative}
+.photos.one{grid-template-columns:minmax(112px,160px)}
+.photos.one .bar{grid-template-columns:1fr}
+.rv-who{display:flex;align-items:center;gap:12px;min-width:0}
+.rv-th{width:72px;height:96px;flex:none;border-radius:8px;object-fit:cover;background:var(--card-2);border:1px solid var(--line)}
+.rv.busy .rv-act{opacity:.55;pointer-events:none}
 .note-box.ok{border-color:rgba(0,255,135,.4);background:rgba(0,255,135,.06);color:var(--acc)}
 .dot{display:inline-grid;place-items:center;min-width:18px;height:18px;margin-left:6px;padding:0 5px;border-radius:9px;background:var(--warn);color:#121212;font-size:.72rem;font-weight:800}
 .dot:empty{display:none}
@@ -451,7 +409,7 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
       <div class="olist" id="clist"></div>
     </div>
 
-<!-- Reseñas -->
+    <!-- Reseñas -->
     <div id="viewReviews" hidden>
       <div class="ord-head"><h2>Reseñas</h2><span class="num" id="rvCount" style="color:var(--mute)"></span></div>
       <p style="color:var(--mute);margin:8px 0 14px">Las que estén activas aparecen en la tienda en "Lo que dicen del club". Con cero activas, la sección no se muestra.</p>
@@ -489,7 +447,6 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
 <script>
 (function(){
   "use strict";
-    
 
   /* ================== CONFIGURACIÓN ================== */
   var SUPABASE_URL = "https://imyzlrtysbwyrgaqasps.supabase.co";
@@ -845,7 +802,7 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
     }
   });
 
-  /* ================== FOTOS (igual que en admin_1: se achican y se suben a Supabase Storage) ================== */
+  /* ================== FOTOS (se achican y se suben a Supabase Storage) ================== */
   function pathOf(url){ var m = String(url||"").match(/\/storage\/v1\/object\/public\/product-images\/(.+?)(?:\?.*)?$/); return m ? decodeURIComponent(m[1]) : null; }
   function removePath(p){ if(p && p.indexOf(RV_FOLDER+"/")===0) sb.storage.from(BUCKET).remove([p]); }   // solo toca la carpeta de reseñas
   function isImage(f){ return /^image\//.test(f.type) || /\.(jpe?g|png|webp|heic|heif|gif|avif)$/i.test(f.name); }
@@ -891,7 +848,7 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
       });
     });
   }
-  
+
   /* ================== RESEÑAS ================== */
   function loadReviews(){
     return sb.from("testimonials").select("*").order("created_at",{ascending:false}).then(function(r){
@@ -903,11 +860,16 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
     $("rvCount").textContent = reviews.filter(function(x){ return x.active; }).length+" activas de "+reviews.length;
     if(!reviews.length){ $("rvList").innerHTML = '<div class="empty">'+ic("star")+'<div>Todavía no cargaste reseñas.</div></div>'; return; }
     $("rvList").innerHTML = reviews.map(function(x){
-      return '<div class="rv'+(x.active?"":" off")+'" data-id="'+x.id+'"><div><b>'+esc(x.name)+'</b> <small>'+esc(x.city||"")+(x.active?"":" · oculta")+'</small></div>'+
-        '<div class="rv-act"><button type="button" class="btn btn-line btn-sm" data-r="toggle">'+(x.active?"Ocultar":"Mostrar")+'</button><button type="button" class="icon-btn" data-r="del" aria-label="Borrar reseña">'+ic("trash")+'</button></div><p>'+esc(x.body)+'</p></div>';
+      return '<div class="rv'+(x.active?"":" off")+(x._busy?" busy":"")+'" data-id="'+x.id+'"><div class="rv-who">'+
+        (x.photo_url ? '<img class="rv-th" src="'+esc(x.photo_url)+'" alt="Foto de '+esc(x.name)+'" loading="lazy" onerror="this.style.visibility=\'hidden\'">' : '')+
+        '<div><b>'+esc(x.name)+'</b> <small>'+esc(x.city||"")+(x.active?"":" · oculta")+'</small></div></div>'+
+        '<div class="rv-act"><button type="button" class="btn btn-line btn-sm" data-r="photo">'+(x._busy ? "Subiendo..." : (x.photo_url ? "Cambiar foto" : "Agregar foto"))+'</button>'+
+        (x.photo_url ? '<button type="button" class="icon-btn" data-r="rmphoto" aria-label="Quitar foto">'+ic("x")+'</button>' : '')+
+        '<button type="button" class="btn btn-line btn-sm" data-r="toggle">'+(x.active?"Ocultar":"Mostrar")+'</button><button type="button" class="icon-btn" data-r="del" aria-label="Borrar reseña">'+ic("trash")+'</button></div><p>'+esc(x.body)+'</p></div>';
     }).join("");
+  }
 
-    // --- Foto de una reseña que ya existe (agregar, cambiar o quitar) ---
+  // --- Foto de una reseña que ya existe (agregar, cambiar o quitar) ---
   var rowTarget = null;
   $("rvRowFile").addEventListener("change",function(){
     var f = [].slice.call(this.files).filter(isImage)[0], id = rowTarget; this.value = ""; rowTarget = null;
@@ -1025,5 +987,81 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
   init();
 })();
 </script>
+<script>
+(function(){
+  if(window.__gcReviewViewer) return; window.__gcReviewViewer = true;
+  var SEL = 'img[src*="/storage/v1/object/public/product-images/reviews/"]';
+  var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var css =
+    SEL+'{cursor:zoom-in}'+
+    SEL+':focus-visible{outline:2px solid #00ff87;outline-offset:3px}'+
+    '.gcv{position:fixed;inset:0;z-index:2147483000;background:rgba(8,8,8,.96);opacity:0;transition:opacity 160ms ease}'+
+    '.gcv.on{opacity:1}.gcv[hidden]{display:none}'+
+    '.gcv-sc{position:absolute;inset:0;overflow:auto;display:flex;padding:64px 12px 28px;overscroll-behavior:contain;touch-action:pan-x pan-y pinch-zoom;-webkit-overflow-scrolling:touch}'+
+    '.gcv-img{flex:none;display:block;margin:auto;max-width:100%;height:auto;border-radius:6px;background:#1c1c1c;cursor:zoom-in;transform:scale(.97);transition:transform 200ms cubic-bezier(.23,1,.32,1)}'+
+    '.gcv.on .gcv-img{transform:none}'+
+    '.gcv-img.nat{max-width:none;cursor:zoom-out}'+
+    '.gcv-img.fit{cursor:default}'+
+    '.gcv-x{position:fixed;top:max(12px,env(safe-area-inset-top));right:12px;width:44px;height:44px;display:grid;place-items:center;border-radius:8px;border:1px solid rgba(236,235,228,.26);background:rgba(28,28,28,.92);color:#ecebe4;cursor:pointer}'+
+    '.gcv-x svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round}'+
+    '.gcv-h{position:fixed;left:50%;bottom:max(16px,env(safe-area-inset-bottom));transform:translateX(-50%);padding:8px 14px;border-radius:999px;background:rgba(13,13,13,.82);color:#a4a49e;font:500 .86rem/1.2 system-ui,sans-serif;pointer-events:none;white-space:nowrap;transition:opacity 400ms ease}'+
+    '.gcv-h.gone{opacity:0}'+
+    '@media (prefers-reduced-motion: reduce){.gcv,.gcv-img,.gcv-h{transition:none}.gcv-img{transform:none}}';
+  var st = document.createElement("style"); st.textContent = css; document.head.appendChild(st);
+
+  var root, sc, img, xbtn, hint, opener = null, prevOv = "", hintT = 0;
+  function build(){
+    root = document.createElement("div"); root.className = "gcv"; root.hidden = true;
+    root.setAttribute("role","dialog"); root.setAttribute("aria-modal","true"); root.setAttribute("aria-label","Foto de la reseña");
+    root.innerHTML = '<div class="gcv-sc"><img class="gcv-img" alt=""></div>'+
+      '<button type="button" class="gcv-x" aria-label="Cerrar foto"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>'+
+      '<p class="gcv-h" aria-hidden="true"></p>';
+    document.body.appendChild(root);
+    sc = root.querySelector(".gcv-sc"); img = root.querySelector(".gcv-img"); xbtn = root.querySelector(".gcv-x"); hint = root.querySelector(".gcv-h");
+    xbtn.addEventListener("click", close);
+    sc.addEventListener("click", function(e){ if(e.target === sc) close(); });          // tocar el fondo cierra
+    img.addEventListener("click", function(){                                           // alterna: ajustada a la pantalla / tamaño real
+      if(img.classList.contains("fit")) return;
+      var nat = img.classList.toggle("nat"); showHint(nat ? "Tocá para ajustar a la pantalla" : "Tocá la foto para verla en tamaño real");
+    });
+    img.addEventListener("load", function(){
+      var big = img.naturalWidth > img.clientWidth + 8;                                 // si ya se ve completa, no hay "tamaño real"
+      img.classList.toggle("fit", !big);
+      if(big) showHint("Tocá la foto para verla en tamaño real");
+    });
+    root.addEventListener("keydown", function(e){ if(e.key === "Tab"){ e.preventDefault(); xbtn.focus(); } });
+  }
+  function showHint(t){ hint.textContent = t; hint.classList.remove("gone"); clearTimeout(hintT); hintT = setTimeout(function(){ hint.classList.add("gone"); }, 2800); }
+  function open(from){
+    if(!root) build();
+    opener = from;
+    img.className = "gcv-img"; img.alt = from.alt || "Foto de la reseña"; img.src = from.currentSrc || from.src;
+    sc.scrollTop = 0; sc.scrollLeft = 0; hint.classList.add("gone");
+    root.hidden = false; void root.offsetWidth; root.classList.add("on");
+    prevOv = document.documentElement.style.overflow; document.documentElement.style.overflow = "hidden";
+    xbtn.focus({preventScroll:true});
+  }
+  function close(){
+    if(!root || root.hidden) return;
+    root.classList.remove("on"); document.documentElement.style.overflow = prevOv;
+    setTimeout(function(){ if(!root.classList.contains("on")) root.hidden = true; }, reduced ? 0 : 180);
+    if(opener && document.contains(opener)) opener.focus({preventScroll:true});
+  }
+  document.addEventListener("click", function(e){
+    var t = e.target.closest ? e.target.closest(SEL) : null; if(!t) return;
+    e.preventDefault(); open(t);
+  });
+  document.addEventListener("keydown", function(e){
+    if(root && !root.hidden && e.key === "Escape"){ close(); return; }
+    if((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches(SEL)){ e.preventDefault(); open(e.target); }
+  });
+  // las fotos se pueden usar con teclado y lectores de pantalla (también las que se cargan después)
+  function prep(el){ if(el.getAttribute("role")) return; el.setAttribute("role","button"); el.setAttribute("tabindex","0"); el.setAttribute("aria-label","Ampliar foto"+(el.alt ? ": "+el.alt : "")); }
+  function scan(){ [].forEach.call(document.querySelectorAll(SEL), prep); }
+  scan();
+  if(window.MutationObserver) new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});
+})();
+</script>
+
 </body>
 </html>
