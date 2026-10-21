@@ -906,35 +906,109 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
       return '<div class="rv'+(x.active?"":" off")+'" data-id="'+x.id+'"><div><b>'+esc(x.name)+'</b> <small>'+esc(x.city||"")+(x.active?"":" · oculta")+'</small></div>'+
         '<div class="rv-act"><button type="button" class="btn btn-line btn-sm" data-r="toggle">'+(x.active?"Ocultar":"Mostrar")+'</button><button type="button" class="icon-btn" data-r="del" aria-label="Borrar reseña">'+ic("trash")+'</button></div><p>'+esc(x.body)+'</p></div>';
     }).join("");
-  }
+
+    // --- Foto de una reseña que ya existe (agregar, cambiar o quitar) ---
+  var rowTarget = null;
+  $("rvRowFile").addEventListener("change",function(){
+    var f = [].slice.call(this.files).filter(isImage)[0], id = rowTarget; this.value = ""; rowTarget = null;
+    var x = reviews.filter(function(r){ return r.id===id; })[0];
+    if(!x) return;
+    if(!f){ toast("Elegí un archivo de imagen.","bad"); return; }
+    var oldUrl = x.photo_url, up = null;
+    x._busy = true; renderReviews();
+    uploadPhoto(f).then(function(r){
+      up = r;
+      return sb.from("testimonials").update({photo_url:r.url}).eq("id",id).select("id");
+    }).then(function(r){
+      if(r.error) throw r.error;
+      if(!r.data || !r.data.length) throw new Error("No se pudo guardar: sin permiso en la tabla testimonials");
+      x.photo_url = up.url; removePath(pathOf(oldUrl)); toast("Foto guardada. Ya se ve en la tienda.","good");
+    }).catch(function(err){
+      if(up) removePath(up.path);                 // no queda un archivo suelto si no se pudo guardar
+      toast(upErr(err),"bad");
+    }).then(function(){ x._busy = false; renderReviews(); });
+  });
   $("rvList").addEventListener("click",function(ev){
     var b = ev.target.closest("[data-r]"); if(!b) return;
-    var id = b.closest(".rv").getAttribute("data-id"), x = reviews.filter(function(r){ return r.id===id; })[0]; if(!x) return;
-    if(b.getAttribute("data-r")==="toggle"){
+    var id = b.closest(".rv").getAttribute("data-id"), x = reviews.filter(function(r){ return r.id===id; })[0], act = b.getAttribute("data-r"); if(!x) return;
+    if(act==="photo"){ rowTarget = id; $("rvRowFile").click(); return; }
+    if(act==="rmphoto"){
+      askConfirm({title:"Quitar foto",text:"La reseña queda sin foto en la tienda.",ok:"Quitar"}).then(function(ok){
+        if(!ok) return;
+        sb.from("testimonials").update({photo_url:null}).eq("id",id).select("id").then(function(r){
+          if(r.error || !r.data || !r.data.length){ toast("No se pudo quitar: "+(r.error ? r.error.message : "sin permiso"),"bad"); return; }
+          removePath(pathOf(x.photo_url)); x.photo_url = null; renderReviews(); toast("Foto quitada.");
+        });
+      });
+      return;
+    }
+    if(act==="toggle"){
       sb.from("testimonials").update({active:!x.active}).eq("id",id).select().then(function(r){
         if(r.error){ toast("No se pudo guardar: "+r.error.message,"bad"); return; }
         x.active = !x.active; renderReviews();
       });
     } else {
-      askConfirm({title:"Borrar reseña",text:"Se elimina de la tienda y del panel.",ok:"Borrar",danger:true}).then(function(ok){
+      askConfirm({title:"Borrar reseña",text:"Se elimina de la tienda y del panel, con su foto.",ok:"Borrar",danger:true}).then(function(ok){
         if(!ok) return;
         sb.from("testimonials").delete().eq("id",id).then(function(r){
           if(r.error){ toast("No se pudo borrar: "+r.error.message,"bad"); return; }
+          removePath(pathOf(x.photo_url));
           reviews = reviews.filter(function(r2){ return r2.id!==id; }); renderReviews();
         });
       });
     }
   });
+
+  // --- Foto de una reseña nueva (formulario) ---
+  var rvImg = null;   // {url, path, state:"up"|"ok"|"bad", msg, local}
+  function renderRvPhoto(){
+    $("rvDrop").classList.toggle("full",!!rvImg);
+    $("rvPhotos").innerHTML = !rvImg ? "" :
+      '<li class="ph '+(rvImg.state==="up"?"up":rvImg.state==="bad"?"bad":"")+'"><img src="'+esc(rvImg.local||rvImg.url)+'" alt="Foto de la reseña">'+
+      (rvImg.state==="up" ? '<div class="ov"><div><div class="spin"></div>Subiendo</div></div>' : '')+
+      (rvImg.state==="bad" ? '<div class="ov">'+esc(rvImg.msg||"No se pudo subir")+'</div>' : '')+
+      '<div class="bar"><button type="button" data-rvph="del" aria-label="Quitar foto">'+ic("trash")+'</button></div></li>';
+  }
+  function setRvFile(files){
+    var f = [].slice.call(files).filter(isImage)[0];
+    if(!f){ if(files.length) $("rvPhErr").textContent = "Elegí un archivo de imagen."; return; }
+    $("rvPhErr").textContent = "";
+    if(rvImg){ if(rvImg.path) removePath(rvImg.path); if(rvImg.local) URL.revokeObjectURL(rvImg.local); }   // reemplaza la anterior
+    var mine = rvImg = {url:"",path:null,state:"up",msg:"",local:URL.createObjectURL(f)};
+    renderRvPhoto();
+    uploadPhoto(f).then(function(r){
+      if(rvImg!==mine){ removePath(r.path); return; }       // la quitaron mientras subía
+      mine.url = r.url; mine.path = r.path; mine.state = "ok"; URL.revokeObjectURL(mine.local); mine.local = null;
+    }).catch(function(err){
+      if(rvImg!==mine) return; mine.state = "bad"; mine.msg = upErr(err);
+    }).then(function(){ if(rvImg===mine) renderRvPhoto(); });
+  }
+  $("rvFile").addEventListener("change",function(){ setRvFile(this.files); this.value = ""; });
+  var rvDrop = $("rvDrop");
+  ["dragenter","dragover"].forEach(function(t){ rvDrop.addEventListener(t,function(e){ e.preventDefault(); rvDrop.classList.add("over"); }); });
+  ["dragleave","drop"].forEach(function(t){ rvDrop.addEventListener(t,function(e){ e.preventDefault(); rvDrop.classList.remove("over"); }); });
+  rvDrop.addEventListener("drop",function(e){ if(e.dataTransfer && e.dataTransfer.files) setRvFile(e.dataTransfer.files); });
+  $("rvPhotos").addEventListener("click",function(e){
+    if(!e.target.closest('[data-rvph="del"]') || !rvImg) return;
+    if(rvImg.path) removePath(rvImg.path);
+    if(rvImg.local) URL.revokeObjectURL(rvImg.local);
+    rvImg = null; $("rvPhErr").textContent = ""; renderRvPhoto();
+  });
   $("rvForm").addEventListener("submit",function(e){
     e.preventDefault();
-    var name = $("rvName").value.trim(), body = $("rvBody").value.trim(), photo = $("rvPhoto").value.trim();
+    var name = $("rvName").value.trim(), body = $("rvBody").value.trim(), btn = $("rvForm").querySelector('button[type="submit"]');
     $("rvErr").textContent = "";
     if(!name || !body){ $("rvErr").textContent = "Completá nombre y reseña."; return; }
-    if(photo && !/^https:\/\//i.test(photo)){ $("rvErr").textContent = "El link de la foto tiene que empezar con https://"; return; }
-    sb.from("testimonials").insert({name:name,city:$("rvCity").value.trim()||null,body:body,photo_url:photo||null,active:true}).select().then(function(r){
-      if(r.error){ $("rvErr").textContent = "No se pudo guardar: "+r.error.message; return; }
-      reviews = (r.data||[]).concat(reviews); $("rvForm").reset(); renderReviews(); toast("Reseña agregada.");
-    });
+    if(rvImg && rvImg.state==="up"){ $("rvErr").textContent = "Esperá a que termine de subir la foto."; return; }
+    if(rvImg && rvImg.state==="bad"){ $("rvErr").textContent = "Quitá la foto con error o subila de nuevo."; return; }
+    var photo = rvImg ? rvImg.url : null;
+    btn.disabled = true;
+    sb.from("testimonials").insert({name:name,city:$("rvCity").value.trim()||null,body:body,photo_url:photo,active:true}).select().then(function(r){
+      btn.disabled = false;
+      if(r.error){ $("rvErr").textContent = "No se pudo guardar: "+r.error.message; return; }      // la foto queda cargada para reintentar
+      reviews = (r.data||[]).concat(reviews); rvImg = null; renderRvPhoto(); $("rvPhErr").textContent = "";
+      $("rvForm").reset(); renderReviews(); toast("Reseña agregada.");
+    },function(){ btn.disabled = false; $("rvErr").textContent = "Sin conexión. No se guardó."; });
   });
 
   /* ================== PESTAÑAS ================== */
