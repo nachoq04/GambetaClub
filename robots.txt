@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /pedidos.html
+Disallow: /api/
+
+Sitemap: https://gambetaclub.vercel.app/sitemap.xml
