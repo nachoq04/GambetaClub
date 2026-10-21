@@ -447,6 +447,9 @@ dialog[open]{animation:dlg 220ms var(--ease-out)}
   var SUPABASE_URL = "https://imyzlrtysbwyrgaqasps.supabase.co";
   var SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImlteXpscnR5c2J3eXJnYXFhc3BzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwOTY4MTksImV4cCI6MjEwNzY3MjgxOX0.ldp6ZryfOp0N53qBEW3vmtRh3mfBM81H4X55MQP0WSY";
   var REFRESH_MS = 45000;
+  var BUCKET = "product-images";        // el mismo bucket que usa admin_1.html
+  var RV_FOLDER = "reviews";            // las fotos de reseñas van en esta carpeta del bucket
+  var MAX_SIDE = 2400, QUALITY = .9;     // alta para que las capturas de chat se puedan leer
 
   /* Estados del pedido (los nombres que ve el cliente en WhatsApp salen de acá).
      pendiente -> pagado -> en_camino -> entregado, o cancelado */
