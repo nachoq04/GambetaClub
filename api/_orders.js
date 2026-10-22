@@ -16,6 +16,8 @@ var MAX_LINES = 30, MAX_QTY = 20;
 var TRANSFER_OFF = 0.05;
 // Promos por cantidad (iguales en la tienda). El 10% NO se acumula con el 5% de transferencia: rige el mayor.
 var BULK_MIN = 2, BULK_OFF = 0.10, FREE_SHIP_MIN = 3;
+// Interruptores de las promos: true = activa, false = apagada. Tienen que coincidir con los de index.html.
+var PROMO_CANTIDAD = true, PROMO_ENVIO_GRATIS = true;
 
 function fail(status, message) { var e = new Error(message); e.status = status; return e; }
 
@@ -79,7 +81,7 @@ async function buildCart(body) {
     shirts += l.qty; subtotal += unit * l.qty;
   });
   // Descuento por cantidad: 10% sobre cada camiseta desde BULK_MIN unidades
-  var bulk = shirts >= BULK_MIN;
+  var bulk = PROMO_CANTIDAD && shirts >= BULK_MIN;
   if (bulk) {
     subtotal = 0;
     details.forEach(function (d) { d.unit = Math.round(d.unit * (1 - BULK_OFF)); subtotal += d.unit * d.qty; });
@@ -96,7 +98,7 @@ async function buildShipping(body, shirts) {
   var q = await correo.quote(cp, shirts);
   var opt = q.options.filter(function (o) { return o.type === ship.type; })[0];
   if (!opt) throw fail(409, "No encontramos esa modalidad de envío para tu código postal. Volvé a cotizar.");
-  var free = shirts >= FREE_SHIP_MIN;   // envío gratis desde FREE_SHIP_MIN camisetas
+  var free = PROMO_ENVIO_GRATIS && shirts >= FREE_SHIP_MIN;   // envío gratis desde FREE_SHIP_MIN camisetas
   return { cp: cp, type: ship.type, price: free ? 0 : opt.price, label: opt.label + (free ? " (gratis)" : ""), source: q.source, free: free };
 }
 
