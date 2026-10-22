@@ -118,12 +118,12 @@ function normalize(rates, cp) {
    Precio de 1 camiseta (250 g) según el CP de destino. Cada camiseta extra suma un 15%.
    EDITÁ ACÁ los montos de cada zona (S = a sucursal, D = a domicilio). */
 var LOCAL_CP = "3103";                 // Villa Libertador San Martín: zona exclusiva, solo entrega en la ciudad
-var LOCAL = { D: 2500 };
+var LOCAL = { D: 2000 };
 var ZONES = {
-  1: { S: 5900,  D: 8100  }, // cercano: Entre Ríos, Santa Fe, Córdoba
-  2: { S: 6900,  D: 9500  }, // AMBA y Buenos Aires
-  3: { S: 7800,  D: 10700 }, // Centro y Cuyo, NOA, NEA, Mesopotamia
-  4: { S: 9900,  D: 13400 }  // Patagonia
+  1: { S: 3000,  D: 5000  }, // cercano: Entre Ríos, Santa Fe, Córdoba
+  2: { S: 5000,  D: 7000  }, // AMBA y Buenos Aires
+  3: { S: 7000,  D: 8000 }, // Centro y Cuyo, NOA, NEA, Mesopotamia
+  4: { S: 8000,  D: 9000 }  // Patagonia
 };
 function zoneFor(cp) {
   var n = parseInt(cp, 10);
