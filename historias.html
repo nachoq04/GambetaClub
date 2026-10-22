@@ -56,6 +56,8 @@ input[type=range]{width:100%;accent-color:#00ff87}
 .stage .tag{position:absolute;background:#00ff87;color:#0d0d0d;font:italic 900 52px/1 "Barlow Condensed",sans-serif;text-transform:uppercase;padding:16px 26px 12px;transform:skewX(-8deg);letter-spacing:.02em}
 .stage .tag.warn{background:#ffc75a}
 .stage .photo{position:absolute;overflow:hidden;background:#262626;border-radius:28px;border:2px solid rgba(236,235,228,.18)}
+.stage .bgphoto{border:0;border-radius:0;background:transparent}
+.stage .bgphoto .shade{position:absolute;inset:0;background:linear-gradient(180deg,rgba(17,17,17,.55),rgba(17,17,17,.35) 40%,rgba(17,17,17,.8))}
 .stage .photo img{position:absolute;max-width:none}
 .stage .photo .empty{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#a4a49e;font:600 34px/1.3 "Hanken Grotesk",sans-serif;text-align:center;padding:40px}
 .stage .wm{position:absolute;opacity:.07}
@@ -105,10 +107,11 @@ input[type=range]{width:100%;accent-color:#00ff87}
 
   /* ---------- Plantillas ---------- */
   var TPL = [
-    {id:"bienvenida", name:"Historia: Bienvenida", w:1080, h:1920, photo:false,
+    {id:"bienvenida", name:"Historia: Bienvenida", w:1080, h:1920, photo:true, photoLabel:"Foto de fondo (opcional)",
      fields:[{k:"a",l:"Línea 1",d:"Bienvenido"},{k:"b",l:"Línea 2",d:"al club."},{k:"c",l:"Frase en verde",d:"Elegí tu camiseta."}],
      render:function(v){
-       return '<div class="bg"></div>'+brand(70,90)+
+       return '<div class="bg"></div>'+
+         '<div class="photo bgphoto" id="photoBox" style="left:0;top:0;width:1080px;height:1920px"></div>'+brand(70,90)+
          '<div class="wm" style="left:430px;top:760px;width:760px;height:1160px">'+logoSvg()+'</div>'+
          '<div class="h" data-fit="940" style="position:absolute;left:70px;top:520px;font-size:200px;white-space:nowrap">'+esc(v.a)+'</div>'+
          '<div class="h" data-fit="940" style="position:absolute;left:70px;top:720px;font-size:200px;white-space:nowrap">'+esc(v.b)+'</div>'+
@@ -197,10 +200,11 @@ input[type=range]{width:100%;accent-color:#00ff87}
     var empty = box.querySelector(".empty"); if(empty) empty.style.display = "none";
     var bw = box.clientWidth || parseInt(box.style.width,10), bh = box.clientHeight || parseInt(box.style.height,10);
     var z = +$("zoom").value/100, sc = Math.max(bw/photo.nw, bh/photo.nh)*z, w = photo.nw*sc, h = photo.nh*sc;
-    var ox = (w-bw)/2*(+$("px").value/100), oy = (h-bh)/2*(+$("py").value/100);
+    var ox = bw/2*(+$("px").value/100), oy = bh/2*(+$("py").value/100);
     var im = document.createElement("img"); im.src = photo.img; im.alt = "";
     im.style.width = w+"px"; im.style.height = h+"px"; im.style.left = ((bw-w)/2 - ox)+"px"; im.style.top = ((bh-h)/2 - oy)+"px";
     box.appendChild(im);
+    if(box.classList.contains("bgphoto")){ var sh = document.createElement("div"); sh.className = "shade"; box.appendChild(sh); }
   }
   function fit(){
     var fw = Math.min($("frame").parentNode.clientWidth || 420, 520), s = Math.min(1, fw / cur.w);
