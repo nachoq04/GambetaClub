@@ -734,7 +734,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
         <div class="cat-head">
           <div>
             <h2>Catálogo</h2>
-            <p class="sub">Elegí tu camiseta y tu talle. El pedido lo cerramos por WhatsApp. Pagando por transferencia tenés 5% de descuento en cada camiseta. Llevando 2 o más, 10% OFF, y con 3 el envío es gratis.</p>
+            <p class="sub">Elegí tu camiseta y tu talle. El pedido lo cerramos por WhatsApp. Pagando por transferencia tenés 5% de descuento en cada camiseta.<span id="promoSub"></span></p>
             <span class="rule reveal-rule" id="rule" aria-hidden="true"></span>
           </div>
           <p class="count-label" id="countLabel" aria-live="polite"></p>
@@ -971,6 +971,9 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var PIXEL_ID = "";    // Solo si NO usás Tag Manager: Meta Pixel directo, ej: "1234567890"
   var WHATSAPP = "5492964520101"; // código de país + 9 + área + número, sin signos
   var INSTAGRAM = "gambetaclub"; // usuario de Instagram, sin @
+  // Interruptores de las promos: true = activa, false = apagada. Tienen que coincidir con los de api/_orders.js.
+  var PROMO_CANTIDAD = true;       // 10% de descuento desde 2 camisetas
+  var PROMO_ENVIO_GRATIS = true;   // envío gratis desde 3 camisetas
   function track(name, data){
     data = data || {};
     try{ window.dataLayer = window.dataLayer || []; var ev = {event:name}; for(var k in data) ev[k] = data[k]; window.dataLayer.push(ev); }catch(e){}   // Google Tag Manager
@@ -997,7 +1000,7 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var FAQS = [
     {q:"¿Cómo hago mi pedido?", a:"Elegí tu camiseta y tu talle, sumala al carrito y completá nombre, entrega y pago. Si pagás con Mercado Pago, lo hacés online; con transferencia o efectivo, el pedido se cierra por WhatsApp."},
     {q:"¿Qué formas de pago hay?", a:"Mercado Pago (tarjeta o dinero en cuenta), transferencia o efectivo. Con transferencia o efectivo, los datos te los pasamos por WhatsApp al confirmar el pedido."},
-    {q:"¿Hay promociones?", a:"Las promos vigentes se ven en cada camiseta con el precio anterior tachado y la etiqueta de la oferta. Si pagás por transferencia, el 5% se suma sobre el precio promocional. Además, llevando 2 o más camisetas tenés 10% de descuento, y desde 3 camisetas el envío es gratis. El 10% no se suma al 5% de transferencia: se aplica el mayor."},
+    {q:"¿Hay promociones?", a:"Las promos vigentes se ven en cada camiseta con el precio anterior tachado y la etiqueta de la oferta. Si pagás por transferencia, el 5% se suma sobre el precio promocional."+(PROMO_CANTIDAD && PROMO_ENVIO_GRATIS ? " Además, llevando 2 o más camisetas tenés 10% de descuento, y desde 3 camisetas el envío es gratis. El 10% no se suma al 5% de transferencia: se aplica el mayor." : (PROMO_CANTIDAD ? " Además, llevando 2 o más camisetas tenés 10% de descuento. No se suma al 5% de transferencia: se aplica el mayor." : (PROMO_ENVIO_GRATIS ? " Además, desde 3 camisetas el envío es gratis." : "")))},
     {q:"¿Hay descuento por transferencia?", a:"Sí, 5% de descuento sobre el precio final de cada camiseta si pagás por transferencia. Lo ves reflejado en el detalle de cada camiseta y en tu carrito al elegir Transferencia."},
     {q:"¿Hacen envíos?", a:"Sí, enviamos por Correo Argentino a todo el país, a sucursal o a domicilio. Cotizás el costo con tu código postal en el carrito. Dentro de Villa Libertador San Martín el envío tiene una tarifa propia. También podés retirar sin cargo en Villa Libertador San Martín (Entre Ríos)."},
     {q:"¿Dónde puedo retirar?", a:"En Villa Libertador San Martín (Entre Ríos). Coordinamos punto y horario por WhatsApp."},
@@ -1105,8 +1108,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   var basePrice = function(p){ return p.promo || p.price; };
   // Promos por cantidad: 10% desde 2 camisetas y envío gratis desde 3. El 10% no se suma al 5% de transferencia: rige el mayor.
   var BULK_MIN = 2, BULK_OFF = 0.10, FREE_SHIP_MIN = 3;
-  var isBulk = function(){ return count() >= BULK_MIN; };
-  var freeShip = function(){ return count() >= FREE_SHIP_MIN; };
+  var isBulk = function(){ return PROMO_CANTIDAD && count() >= BULK_MIN; };
+  var freeShip = function(){ return PROMO_ENVIO_GRATIS && count() >= FREE_SHIP_MIN; };
   var unit = function(p){ return isBulk() ? Math.round(basePrice(p) * (1 - BULK_OFF)) : (isTransfer() ? transferPrice(basePrice(p)) : basePrice(p)); };
   var priceHtml = function(p){ return p.promo ? '<s>'+money(p.price)+'</s>'+money(p.promo) : money(p.price); };
   var total = function(){ return cart.reduce(function(s,i){ return s + unit(byId(i.id)) * i.qty; },0); };
@@ -1475,9 +1478,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
   /* ================== CARRITO ================== */
   function renderPromoHint(){
     var n = count(), el = $("promoHint"), t = "";
-    if(n === 1) t = "Llevá 2 camisetas y tenés 10% OFF. Con 3, el envío es gratis.";
-    else if(n === 2) t = "Ya tenés 10% OFF. Sumá 1 camiseta más y el envío es gratis.";
-    else if(n >= 3) t = "Tenés 10% OFF y envío gratis.";
+    if(PROMO_CANTIDAD && PROMO_ENVIO_GRATIS){
+      if(n === 1) t = "Llevá 2 camisetas y tenés 10% OFF. Con 3, el envío es gratis.";
+      else if(n === 2) t = "Ya tenés 10% OFF. Sumá 1 camiseta más y el envío es gratis.";
+      else if(n >= 3) t = "Tenés 10% OFF y envío gratis.";
+    } else if(PROMO_CANTIDAD){
+      t = n === 1 ? "Llevá 2 camisetas y tenés 10% OFF." : (n >= 2 ? "Tenés 10% OFF." : "");
+    } else if(PROMO_ENVIO_GRATIS){
+      t = n === 1 ? "Llevá 3 camisetas y el envío es gratis." : (n === 2 ? "Sumá 1 camiseta más y el envío es gratis." : (n >= 3 ? "Tenés envío gratis." : ""));
+    }
     el.textContent = t; el.hidden = !t;
   }
   function updatePayNote(){
@@ -2234,6 +2243,8 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
     }
   }
   loadCust();
+  $("promoSub").textContent = PROMO_CANTIDAD && PROMO_ENVIO_GRATIS ? " Llevando 2 o más, 10% OFF, y con 3 el envío es gratis."
+    : (PROMO_CANTIDAD ? " Llevando 2 o más, 10% OFF." : (PROMO_ENVIO_GRATIS ? " Con 3 camisetas el envío es gratis." : ""));
   if(/\.vercel\.app$/.test(location.hostname) && location.hostname !== "gambetaclub.vercel.app") $("envbar").hidden = false;   // despliegue de prueba de Vercel
   ["phone","name"].forEach(function(id){ $(id).addEventListener("input", queueCartSync); });
   /* ================== SEGUIMIENTO DEL PEDIDO ================== */
