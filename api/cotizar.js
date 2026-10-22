@@ -133,7 +133,7 @@ function zoneFor(cp) {
   return 3;
 }
 // Plazos estimados desde que despachamos (los define Correo Argentino)
-var ETA = { 1: "2 a 4 días hábiles", 2: "3 a 5 días hábiles", 3: "4 a 7 días hábiles", 4: "6 a 9 días hábiles" };
+var ETA = { 1: "3 a 6 días hábiles", 2: "3 a 7 días hábiles", 3: "3 a 7 días hábiles", 4: "3 a 7 días hábiles" };
 function etaFor(cp) { return ETA[zoneFor(cp)]; }
 function round100(n) { return Math.round(n / 100) * 100; }
 function localOptions(qty) {
