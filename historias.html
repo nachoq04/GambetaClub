@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es-AR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#121212">
+<title>Plantillas de marca | Gambeta Club</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,700;0,800;1,700;1,800;1,900&family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#121212;--card:#1c1c1c;--card-2:#262626;--chalk:#ecebe4;--mute:#a4a49e;--acc:#00ff87;--warn:#ffc75a;--line:rgba(236,235,228,.14);--line-2:rgba(236,235,228,.28);
+  --f-display:"Barlow Condensed","Arial Narrow",Impact,sans-serif;--f-body:"Hanken Grotesk",system-ui,sans-serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--chalk);font:400 1rem/1.5 var(--f-body);padding:20px 16px 60px}
+.wrap{max-width:1100px;margin:0 auto}
+h1{font:italic 900 clamp(2.4rem,8vw,3.6rem)/.95 var(--f-display);text-transform:uppercase}
+.lead{color:var(--mute);margin:8px 0 22px;max-width:60ch}
+.layout{display:grid;gap:24px}
+@media(min-width:880px){.layout{grid-template-columns:380px 1fr;align-items:start}}
+.panel{display:grid;gap:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{min-height:42px;padding:0 14px;border-radius:999px;border:1px solid var(--line-2);color:var(--chalk);font:600 .9rem var(--f-body);cursor:pointer;background:transparent}
+.chip[aria-pressed="true"]{background:var(--chalk);color:#121212;border-color:var(--chalk)}
+.field{display:grid;gap:6px}
+.field label,.lbl{font-size:.88rem;font-weight:600}
+input[type=text],textarea{width:100%;min-height:46px;padding:10px 12px;background:var(--bg);border:1px solid var(--line-2);border-radius:8px;color:var(--chalk);font:inherit}
+textarea{min-height:84px;resize:vertical}
+input:focus,textarea:focus{border-color:var(--acc);outline:0}
+input[type=range]{width:100%;accent-color:#00ff87}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:48px;padding:0 20px;border-radius:8px;border:0;font:700 1rem var(--f-body);cursor:pointer}
+.btn-primary{background:var(--acc);color:#0d0d0d}
+.btn-line{background:transparent;color:var(--chalk);border:1px solid var(--line-2)}
+.btn:focus-visible,.chip:focus-visible{outline:2px solid var(--acc);outline-offset:3px}
+.hint{color:var(--mute);font-size:.84rem}
+.photo-row{display:grid;gap:10px}
+.preview-box{display:grid;justify-items:center;gap:12px}
+.preview-frame{border:1px solid var(--line-2);border-radius:12px;overflow:hidden;background:#000;position:relative}
+.scaler{transform-origin:0 0}
+.note-ok{color:var(--acc);font-size:.9rem;min-height:1.3em}
+
+/* ================== ESCENARIO (se exporta tal cual) ================== */
+.stage{position:relative;overflow:hidden;background:#121212;color:#ecebe4;font-family:"Hanken Grotesk",system-ui,sans-serif;--acc:#00ff87}
+.stage *{box-sizing:border-box;margin:0;padding:0}
+.stage .bg{position:absolute;left:0;top:0;right:0;bottom:0;background:linear-gradient(120deg,rgba(0,255,135,.14) 0%,rgba(0,255,135,0) 45%),repeating-linear-gradient(115deg,rgba(255,255,255,0) 0,rgba(255,255,255,0) 70px,rgba(255,255,255,.028) 70px,rgba(255,255,255,.028) 140px)}
+.stage .brand{position:absolute;display:flex;align-items:center;gap:18px}
+.stage .brand svg{width:62px;height:95px;flex:none}
+.stage .brand b{font:italic 900 54px/1 "Barlow Condensed","Arial Narrow",Impact,sans-serif;text-transform:uppercase;letter-spacing:.012em}
+.stage .brand i{font:italic 800 24px/1 "Barlow Condensed",sans-serif;background:#00ff87;color:#0d0d0d;padding:7px 10px 5px;border-radius:4px;margin-left:12px;font-style:italic;text-transform:uppercase}
+.stage .foot{position:absolute;text-align:center;color:#a4a49e;font:600 30px/1.3 "Hanken Grotesk",sans-serif}
+.stage .foot b{color:#ecebe4;font-weight:700}
+.stage .h{font-family:"Barlow Condensed","Arial Narrow",Impact,sans-serif;font-style:italic;font-weight:900;text-transform:uppercase;line-height:.9;letter-spacing:.01em}
+.stage .acc{color:#00ff87}
+.stage .tag{position:absolute;background:#00ff87;color:#0d0d0d;font:italic 900 52px/1 "Barlow Condensed",sans-serif;text-transform:uppercase;padding:16px 26px 12px;transform:skewX(-8deg);letter-spacing:.02em}
+.stage .tag.warn{background:#ffc75a}
+.stage .photo{position:absolute;overflow:hidden;background:#262626;border-radius:28px;border:2px solid rgba(236,235,228,.18)}
+.stage .photo img{position:absolute;max-width:none}
+.stage .photo .empty{position:absolute;left:0;top:0;right:0;bottom:0;display:flex;align-items:center;justify-content:center;color:#a4a49e;font:600 34px/1.3 "Hanken Grotesk",sans-serif;text-align:center;padding:40px}
+.stage .wm{position:absolute;opacity:.07}
+.stage .wm svg{width:100%;height:100%}
+.stage .pill{display:inline-block;border:2px solid rgba(236,235,228,.4);border-radius:999px;padding:12px 28px;font:700 34px/1 "Hanken Grotesk",sans-serif}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Plantillas de marca</h1>
+  <p class="lead">Elegí una plantilla, cambiá los textos, sumá tu foto real y descargá la imagen lista para subir a Instagram o para imprimir. Todo se arma en tu navegador: nada se sube a ningún lado.</p>
+  <div class="layout">
+    <div class="panel">
+      <div>
+        <span class="lbl" id="tplL">Plantilla</span>
+        <div class="chips" id="tplChips" role="group" aria-labelledby="tplL" style="margin-top:8px"></div>
+      </div>
+      <div id="fields" style="display:grid;gap:14px"></div>
+      <div class="photo-row" id="photoRow" hidden>
+        <div class="field"><label for="photoFile" id="photoLbl">Foto</label><input type="file" id="photoFile" accept="image/*"></div>
+        <div class="field"><label for="zoom">Zoom</label><input type="range" id="zoom" min="100" max="300" value="100"></div>
+        <div class="field"><label for="px">Mover a los costados</label><input type="range" id="px" min="-100" max="100" value="0"></div>
+        <div class="field"><label for="py">Mover arriba y abajo</label><input type="range" id="py" min="-100" max="100" value="0"></div>
+      </div>
+      <button class="btn btn-primary" id="download" type="button">Descargar imagen</button>
+      <p class="note-ok" id="state" role="status" aria-live="polite"></p>
+      <p class="hint" id="sizeHint"></p>
+    </div>
+    <div class="preview-box">
+      <div class="preview-frame" id="frame"><div class="scaler" id="scaler"><div class="stage" id="stage"></div></div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var LOGO = "<path id=\"lg-g\" style=\"fill:var(--acc)\" fill-rule=\"evenodd\" d=\"M259.0 773.2 254.0 773.6 249.2 773.0 224.0 762.0 205.5 753.0 193.0 746.2 172.0 733.2 149.0 717.0 130.5 702.0 117.4 690.0 92.0 663.8 73.0 639.5 58.9 616.0 48.0 592.5 36.0 558.9 23.8 515.0 12.9 466.0 12.2 302.0 11.4 296.0 7.9 286.0 7.6 280.0 8.0 273.8 11.0 265.7 16.8 258.0 24.0 251.9 243.0 136.0 244.0 135.0 244.4 133.0 245.0 105.9 253.0 102.8 268.0 98.4 277.0 94.7 287.0 88.7 293.7 83.0 298.6 76.0 301.4 68.0 301.5 58.0 299.6 51.0 295.7 43.0 290.0 36.2 282.0 30.5 274.0 27.6 266.0 26.6 256.0 27.5 248.0 30.4 241.0 34.8 235.8 40.0 231.7 46.0 229.6 51.0 227.0 62.0 223.0 66.3 220.0 67.3 215.0 67.0 211.6 65.0 208.8 61.0 208.0 55.0 209.0 49.0 210.9 43.0 215.9 33.0 224.0 22.9 234.0 15.0 244.0 10.0 255.0 7.0 265.0 6.4 279.0 7.9 287.9 11.0 296.9 16.0 306.4 24.0 312.0 30.7 317.2 40.0 321.0 53.0 322.1 64.0 321.1 73.0 319.1 80.0 315.1 88.0 311.0 93.7 302.9 102.0 293.0 109.1 280.9 115.0 265.0 120.9 264.3 134.0 265.0 135.8 308.0 157.9 485.0 251.8 492.4 258.0 498.1 266.0 500.1 271.0 501.3 281.0 501.0 285.4 497.5 296.0 496.9 301.0 496.6 456.0 496.1 473.0 494.0 494.0 492.1 506.0 488.0 523.6 480.0 549.0 467.0 580.9 454.1 608.0 446.0 623.9 441.0 632.0 423.0 656.0 404.0 677.6 378.7 702.0 346.0 727.2 316.0 746.0 293.0 758.1ZM444.8 295.0 467.0 294.7 474.0 292.2 478.9 288.0 481.4 283.0 481.6 278.0 480.5 275.0 477.0 270.7 471.0 266.4 255.0 152.6 252.0 153.4 38.0 266.5 30.5 272.0 28.5 275.0 27.3 279.0 28.4 285.0 31.0 288.9 34.0 291.6 41.0 294.5 49.0 295.3ZM237.0 257.0 230.0 257.0 222.3 254.0 217.8 249.0 214.8 241.0 214.7 229.0 216.9 222.0 221.0 217.0 224.0 215.0 230.1 213.0 237.0 213.0 240.9 214.0 244.6 216.0 250.1 222.0 253.1 230.0 253.5 241.0 253.0 243.9 251.0 248.5 248.2 252.0 245.3 254.0 241.3 256.0ZM291.0 258.2 265.0 256.0 257.3 255.0 255.0 253.8 255.0 246.6 256.0 243.4 258.6 240.0 267.0 234.9 280.0 230.5 283.0 228.6 284.8 226.0 284.6 224.0 283.0 222.3 276.0 220.3 268.0 221.7 261.4 225.0 260.8 224.0 260.9 218.0 262.0 215.0 263.4 214.0 271.0 212.2 280.0 212.9 288.3 216.0 293.0 220.1 294.1 223.0 294.1 227.0 293.0 230.0 290.5 233.0 283.0 237.0 266.0 242.6 264.7 245.0 265.4 247.0 268.0 248.7 277.0 249.9 283.0 249.4 292.0 245.6 292.6 255.0 292.0 257.6ZM186.0 268.0 181.3 268.0 179.7 266.0 178.0 259.0 179.0 254.0 185.0 246.2 196.3 236.0 197.7 233.0 197.6 230.0 196.0 228.6 194.0 228.3 190.0 228.5 187.0 229.4 183.0 231.7 176.0 238.8 175.0 238.2 173.9 235.0 172.9 229.0 175.0 227.0 179.0 224.8 188.4 221.0 196.0 219.9 201.0 221.0 204.0 222.7 206.0 225.2 207.3 229.0 207.0 232.6 203.0 239.4 188.7 252.0 187.4 254.0 187.3 257.0 189.0 257.8 195.0 257.7 202.0 255.5 207.0 252.3 212.0 246.5 213.0 246.7 214.0 248.3 216.8 257.0 216.0 258.4 212.8 260.0ZM238.4 249.0 241.2 247.0 244.4 241.0 244.6 234.0 243.5 229.0 241.5 225.0 238.0 221.2 235.0 220.3 230.0 220.6 228.0 221.6 225.6 224.0 223.6 229.0 223.3 236.0 224.5 242.0 226.4 246.0 231.0 249.4 235.0 249.7ZM323.0 265.0 315.0 265.4 309.0 264.1 301.0 259.3 298.9 257.0 297.0 253.0 296.1 245.0 296.9 240.0 298.9 234.0 304.9 226.0 312.0 221.8 317.0 221.3 323.0 222.0 332.0 226.0 335.1 228.0 336.5 230.0 335.0 237.0 333.0 239.6 332.0 239.5 327.0 232.6 324.0 230.7 320.0 229.4 314.0 230.4 310.6 233.0 308.4 236.0 309.0 237.3 310.0 237.5 317.0 238.0 324.0 239.8 328.7 243.0 331.0 246.1 332.3 252.0 331.2 258.0 328.2 262.0ZM320.9 257.0 323.3 254.0 323.8 251.0 323.4 247.0 321.0 244.4 317.0 242.6 312.0 242.4 308.0 243.4 305.8 245.0 304.6 248.0 304.8 250.0 305.4 252.0 308.0 255.3 313.0 257.7 318.0 257.9ZM256.1 751.0 263.0 748.5 289.0 736.4 311.0 724.4 341.0 704.5 365.0 685.4 389.7 662.0 410.4 638.0 427.4 614.0 436.5 599.0 444.5 584.0 454.4 562.0 463.5 536.0 469.5 512.0 473.4 488.0 475.4 453.0 475.0 314.0 474.0 313.3 460.0 314.3 48.0 314.3 35.0 313.3 34.0 314.0 33.7 316.0 33.5 452.0 35.6 488.0 39.6 513.0 44.5 533.0 52.5 557.0 64.4 584.0 76.4 606.0 95.4 634.0 106.7 648.0 118.4 661.0 132.0 674.7 145.0 686.5 161.0 699.5 175.0 709.5 207.0 729.4 230.0 741.3 250.0 750.4 253.0 751.4Z\"/><path id=\"lg-w\" style=\"fill:var(--chalk)\" fill-rule=\"evenodd\" d=\"M257.0 727.1 254.0 727.4 248.0 725.4 225.0 715.3 211.0 708.3 182.0 690.2 159.0 672.2 138.8 653.0 122.7 634.0 107.8 613.0 97.8 596.0 92.7 586.0 79.6 555.0 71.6 531.0 65.6 507.0 59.6 472.0 56.5 440.0 55.0 399.0 56.5 363.0 56.8 333.0 57.1 331.0 58.0 330.1 449.0 330.0 451.0 330.2 451.5 331.0 451.6 353.0 451.4 354.0 450.0 354.5 84.0 354.5 82.3 355.0 81.0 380.0 81.0 419.0 82.5 449.0 85.6 475.0 89.7 499.0 95.6 523.0 103.6 547.0 113.5 571.0 125.8 594.0 135.7 609.0 151.0 628.6 164.0 642.4 177.0 654.3 196.0 669.2 213.0 680.2 235.0 692.0 251.0 699.4 255.0 699.7 260.0 698.2 287.0 685.2 310.0 672.1 328.0 660.3 348.0 644.3 357.0 636.0 368.5 623.0 375.2 614.0 382.2 602.0 387.2 590.0 390.2 580.0 393.4 564.0 394.5 549.0 392.0 548.4 195.0 548.4 194.0 548.2 193.5 547.0 193.5 525.0 194.0 523.5 415.0 523.3 416.5 524.0 418.4 536.0 419.2 551.0 418.5 567.0 416.4 580.0 411.4 598.0 406.4 610.0 400.1 622.0 392.1 634.0 381.2 647.0 369.0 659.6 353.0 673.1 338.0 684.2 319.0 696.3 295.0 709.4Z\"/>";
+  var $ = function(id){ return document.getElementById(id); };
+  var esc = function(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]; }); };
+  var logoSvg = function(cls){ return '<svg viewBox="0 0 510 782" aria-hidden="true"'+(cls?' class="'+cls+'"':'')+'>'+LOGO+'</svg>'; };
+  var URLTXT = "gambetaclub.vercel.app";
+
+  function brand(x,y){ return '<div class="brand" style="left:'+x+'px;top:'+y+'px">'+logoSvg()+'<b>Gambeta</b><i>Club</i></div>'; }
+  function foot(y,line){ return '<div class="foot" style="left:60px;right:60px;top:'+y+'px">'+(line||'<b>'+URLTXT+'</b><br>Fotos reales · Envíos a todo el país')+'</div>'; }
+  function photoBox(x,y,w,h,r){ return '<div class="photo" id="photoBox" style="left:'+x+'px;top:'+y+'px;width:'+w+'px;height:'+h+'px'+(r?';border-radius:'+r+'px':'')+'"><div class="empty">Elegí una foto real de la camiseta</div></div>'; }
+
+  /* ---------- Plantillas ---------- */
+  var TPL = [
+    {id:"bienvenida", name:"Historia: Bienvenida", w:1080, h:1920, photo:false,
+     fields:[{k:"a",l:"Línea 1",d:"Bienvenido"},{k:"b",l:"Línea 2",d:"al club."},{k:"c",l:"Frase en verde",d:"Elegí tu camiseta."}],
+     render:function(v){
+       return '<div class="bg"></div>'+brand(70,90)+
+         '<div class="wm" style="left:430px;top:760px;width:760px;height:1160px">'+logoSvg()+'</div>'+
+         '<div class="h" data-fit="940" style="position:absolute;left:70px;top:520px;font-size:200px;white-space:nowrap">'+esc(v.a)+'</div>'+
+         '<div class="h" data-fit="940" style="position:absolute;left:70px;top:720px;font-size:200px;white-space:nowrap">'+esc(v.b)+'</div>'+
+         '<div class="h acc" data-fit="940" style="position:absolute;left:70px;top:1000px;font-size:128px;white-space:nowrap">'+esc(v.c)+'</div>'+
+         foot(1700);
+     }},
+    {id:"nuevo", name:"Historia: Nuevo ingreso", w:1080, h:1920, photo:true, photoLabel:"Foto de la camiseta",
+     fields:[{k:"n",l:"Nombre de la camiseta",d:"Boca Juniors Titular"},{k:"p",l:"Precio",d:"$42.000"},{k:"s",l:"Talles",d:"Talles S, M, L y XL"},{k:"c",l:"Mensaje final",d:"Pedila en la web"}],
+     render:function(v){
+       return '<div class="bg"></div>'+brand(70,70)+
+         photoBox(70,250,940,1010)+
+         '<div class="tag" style="left:30px;top:1180px">Nuevo ingreso</div>'+
+         '<div class="h" data-fit="940" style="position:absolute;left:70px;top:1330px;font-size:104px;white-space:nowrap">'+esc(v.n)+'</div>'+
+         '<div class="h acc" style="position:absolute;left:70px;top:1535px;font-size:120px">'+esc(v.p)+'</div>'+
+         '<div style="position:absolute;left:70px;top:1685px;font:600 36px/1.3 Hanken Grotesk,sans-serif;color:#a4a49e">'+esc(v.s)+'</div>'+
+         '<div style="position:absolute;right:70px;top:1560px"><span class="pill">'+esc(v.c)+'</span></div>'+
+         '<div class="foot" style="left:60px;right:60px;top:1810px;font-size:28px"><b>'+URLTXT+'</b></div>';
+     }},
+    {id:"ultimas", name:"Historia: Últimas unidades", w:1080, h:1920, photo:true, photoLabel:"Foto de la camiseta",
+     fields:[{k:"n",l:"Nombre de la camiseta",d:"Argentina Titular"},{k:"q",l:"Cuántas quedan",d:"Quedan 2 en talle L"},{k:"p",l:"Precio",d:"$45.000"}],
+     render:function(v){
+       return '<div class="bg"></div>'+brand(70,70)+
+         photoBox(70,250,940,1010)+
+         '<div class="tag warn" style="left:30px;top:1180px">Últimas unidades</div>'+
+         '<div class="h" data-fit="940" style="position:absolute;left:70px;top:1330px;font-size:104px;white-space:nowrap">'+esc(v.n)+'</div>'+
+         '<div class="h" style="position:absolute;left:70px;top:1535px;font-size:92px;color:#ffc75a">'+esc(v.q)+'</div>'+
+         '<div class="h acc" style="position:absolute;left:70px;top:1680px;font-size:100px">'+esc(v.p)+'</div>'+
+         '<div class="foot" style="left:60px;right:60px;top:1810px;font-size:28px"><b>'+URLTXT+'</b></div>';
+     }},
+    {id:"promo", name:"Historia: Promo", w:1080, h:1920, photo:false,
+     fields:[{k:"a",l:"Arriba",d:"Llevando 2 o más"},{k:"b",l:"Número grande",d:"10% OFF"},{k:"c",l:"Debajo",d:"Con 3 camisetas, el envío es gratis."},{k:"d",l:"Aclaración",d:"El 10% no se suma al 5% de transferencia."}],
+     render:function(v){
+       return '<div class="bg"></div>'+brand(70,90)+
+         '<div class="h" data-fit="940" style="position:absolute;left:70px;top:520px;font-size:120px;color:#a4a49e;white-space:nowrap">'+esc(v.a)+'</div>'+
+         '<div class="h acc" data-fit="940" style="position:absolute;left:60px;top:680px;font-size:300px;line-height:.85;white-space:nowrap">'+esc(v.b)+'</div>'+
+         '<div class="h" style="position:absolute;left:70px;top:1130px;width:940px;font-size:104px">'+esc(v.c)+'</div>'+
+         '<div style="position:absolute;left:70px;top:1560px;width:940px;font:500 34px/1.4 Hanken Grotesk,sans-serif;color:#a4a49e">'+esc(v.d)+'</div>'+
+         foot(1700);
+     }},
+    {id:"resena", name:"Historia: Ya la recibieron", w:1080, h:1920, photo:true, photoLabel:"Foto del cliente (opcional)",
+     fields:[{k:"q",l:"Lo que dijo",d:"Llegó rápido y es igual a la foto."},{k:"w",l:"Nombre",d:"Mati R."},{k:"c",l:"Ciudad",d:"Concordia"}],
+     render:function(v){
+       return '<div class="bg"></div>'+brand(70,90)+
+         '<div class="tag" style="left:40px;top:300px">Ya la recibieron</div>'+
+         photoBox(70,450,940,700)+
+         '<div class="h" style="position:absolute;left:70px;top:1220px;width:940px;font-size:96px;line-height:.98">“'+esc(v.q)+'”</div>'+
+         '<div style="position:absolute;left:70px;top:1590px;font:700 44px/1.2 Hanken Grotesk,sans-serif"><span class="acc">'+esc(v.w)+'</span>'+(v.c?'<span style="color:#a4a49e;font-weight:500"> · '+esc(v.c)+'</span>':'')+'</div>'+
+         foot(1740);
+     }},
+    {id:"tarjeta", name:"Tarjeta del pedido (imprimir)", w:1500, h:1000, photo:false,
+     fields:[{k:"n",l:"Nombre del cliente",d:"Nombre"},{k:"r",l:"Código de pedido",d:"GC-XXXXXXXX"}],
+     render:function(v){
+       return '<div class="bg"></div>'+brand(70,60)+
+         '<div class="h" data-fit="760" style="position:absolute;left:70px;top:230px;font-size:140px;white-space:nowrap">Gracias por</div>'+
+         '<div class="h" data-fit="760" style="position:absolute;left:70px;top:370px;font-size:140px;white-space:nowrap">sumarte</div>'+
+         '<div class="h acc" data-fit="760" style="position:absolute;left:70px;top:510px;font-size:140px;white-space:nowrap">al club'+(v.n&&v.n!=="Nombre"?', '+esc(v.n.split(" ")[0]):'.')+'</div>'+
+         '<div style="position:absolute;right:70px;top:250px;width:520px;display:grid;gap:26px">'+
+           '<div style="border:2px solid rgba(236,235,228,.28);border-radius:16px;padding:26px 30px"><div style="font:600 26px/1 Hanken Grotesk,sans-serif;color:#a4a49e;margin-bottom:10px">Tu código de pedido</div><div class="h acc" style="font-size:84px;line-height:1">'+esc(v.r)+'</div></div>'+
+           '<div style="font:500 30px/1.45 Hanken Grotesk,sans-serif;color:#ecebe4">Seguí tu pedido en <b>'+URLTXT+'</b>: tocá Seguí tu pedido al final de la página e ingresá este código.</div>'+
+           '<div style="font:500 30px/1.45 Hanken Grotesk,sans-serif;color:#a4a49e">Si te gustó, mandanos una foto con tu camiseta por WhatsApp y la compartimos.</div>'+
+         '</div>'+
+         '<div class="foot" style="left:70px;right:70px;top:880px;text-align:left;font-size:28px"><b>WhatsApp +54 9 2964 52-0101</b> · Para tener calidad, dentro y fuera de la cancha.</div>';
+     }}
+  ];
+
+  var cur = TPL[0], vals = {}, photo = {img:null,nw:0,nh:0};
+
+  function buildChips(){
+    $("tplChips").innerHTML = TPL.map(function(t){ return '<button type="button" class="chip" data-id="'+t.id+'" aria-pressed="'+(t===cur)+'">'+esc(t.name)+'</button>'; }).join("");
+    [].forEach.call($("tplChips").querySelectorAll(".chip"),function(b){ b.onclick = function(){ pick(b.getAttribute("data-id")); }; });
+  }
+  function buildFields(){
+    $("fields").innerHTML = cur.fields.map(function(f){
+      var big = f.k==="q" || f.k==="d";
+      return '<div class="field"><label for="f_'+f.k+'">'+esc(f.l)+'</label>'+(big?'<textarea id="f_'+f.k+'" maxlength="140"></textarea>':'<input type="text" id="f_'+f.k+'" maxlength="60" autocomplete="off">')+'</div>';
+    }).join("");
+    cur.fields.forEach(function(f){ var el = $("f_"+f.k); el.value = vals[cur.id+f.k] != null ? vals[cur.id+f.k] : f.d; el.addEventListener("input",function(){ vals[cur.id+f.k] = el.value; draw(); }); });
+    $("photoRow").hidden = !cur.photo; if(cur.photoLabel) $("photoLbl").textContent = cur.photoLabel;
+  }
+  function values(){ var v = {}; cur.fields.forEach(function(f){ var x = vals[cur.id+f.k]; v[f.k] = x != null ? x : f.d; }); return v; }
+
+  function placePhoto(){
+    var box = $("photoBox"); if(!box) return;
+    var old = box.querySelector("img"); if(old) old.remove();
+    if(!photo.img){ return; }
+    var empty = box.querySelector(".empty"); if(empty) empty.style.display = "none";
+    var bw = box.clientWidth || parseInt(box.style.width,10), bh = box.clientHeight || parseInt(box.style.height,10);
+    var z = +$("zoom").value/100, sc = Math.max(bw/photo.nw, bh/photo.nh)*z, w = photo.nw*sc, h = photo.nh*sc;
+    var ox = (w-bw)/2*(+$("px").value/100), oy = (h-bh)/2*(+$("py").value/100);
+    var im = document.createElement("img"); im.src = photo.img; im.alt = "";
+    im.style.width = w+"px"; im.style.height = h+"px"; im.style.left = ((bw-w)/2 - ox)+"px"; im.style.top = ((bh-h)/2 - oy)+"px";
+    box.appendChild(im);
+  }
+  function fit(){
+    var fw = Math.min($("frame").parentNode.clientWidth || 420, 520), s = Math.min(1, fw / cur.w);
+    $("scaler").style.transform = "scale("+s+")";
+    $("frame").style.width = (cur.w*s)+"px"; $("frame").style.height = (cur.h*s)+"px";
+  }
+  function draw(){
+    var st = $("stage"); st.style.width = cur.w+"px"; st.style.height = cur.h+"px";
+    st.innerHTML = cur.render(values());
+    [].forEach.call(st.querySelectorAll("[data-fit]"),function(el){   // achica el texto si no entra en el ancho
+      var max = +el.getAttribute("data-fit"), fs = parseFloat(el.style.fontSize), n = 0;
+      while(el.offsetWidth > max && fs > 36 && n++ < 60){ fs *= .96; el.style.fontSize = fs+"px"; }
+    });
+    placePhoto(); fit();
+    $("sizeHint").textContent = "Tamaño de la imagen: "+cur.w+" × "+cur.h+" px"+(cur.id==="tarjeta" ? " (para imprimir en 10 × 15 cm o similar)" : " (formato historia de Instagram)");
+  }
+  function pick(id){
+    cur = TPL.filter(function(t){ return t.id===id; })[0]; $("state").textContent = "";
+    buildChips(); buildFields(); draw();
+  }
+
+  $("photoFile").addEventListener("change",function(){
+    var f = this.files && this.files[0]; if(!f) return;
+    var url = URL.createObjectURL(f), im = new Image();
+    im.onload = function(){ photo = {img:url,nw:im.naturalWidth,nh:im.naturalHeight}; $("zoom").value = 100; $("px").value = 0; $("py").value = 0; placePhoto(); };
+    im.onerror = function(){ $("state").textContent = "No se pudo leer esa foto."; };
+    im.src = url;
+  });
+  ["zoom","px","py"].forEach(function(id){ $(id).addEventListener("input",placePhoto); });
+  window.addEventListener("resize",fit);
+
+  $("download").addEventListener("click",function(){
+    if(!window.html2canvas){ $("state").textContent = "No se pudo cargar la librería de imágenes. Revisá tu conexión."; return; }
+    var btn = this; btn.disabled = true; $("state").textContent = "Generando imagen…";
+    (document.fonts && document.fonts.ready ? document.fonts.ready : Promise.resolve()).then(function(){
+      return window.html2canvas($("stage"),{scale:1,width:cur.w,height:cur.h,backgroundColor:"#121212",useCORS:true,logging:false,
+        onclone:function(doc){ var sc = doc.getElementById("scaler"); sc.style.transform = "none"; doc.getElementById("frame").style.width = cur.w+"px"; doc.getElementById("frame").style.height = cur.h+"px"; }});
+    }).then(function(cv){
+      var a = document.createElement("a"); a.download = "gambeta-"+cur.id+".png"; a.href = cv.toDataURL("image/png"); document.body.appendChild(a); a.click(); a.remove();
+      $("state").textContent = "Listo. La imagen se descargó.";
+    }).catch(function(e){ $("state").textContent = "No se pudo generar la imagen. Probá de nuevo."; }).then(function(){ btn.disabled = false; });
+  });
+
+  buildChips(); buildFields(); draw();
+  if(document.fonts && document.fonts.ready) document.fonts.ready.then(draw);
+})();
+</script>
+</body>
+</html>
