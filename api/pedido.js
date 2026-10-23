@@ -9,6 +9,7 @@
  * La tienda llama a esta función antes de abrir WhatsApp. Si falla, el cliente igual puede seguir por WhatsApp.
  */
 var O = require("./_orders.js");
+var N = require("./_notify.js");
 var limited = require("./_limit.js");
 
 function clean(s, n) { return String(s == null ? "" : s).replace(/[\u0000-\u001f]/g, " ").trim().slice(0, n); }
@@ -45,14 +46,16 @@ module.exports = async function handler(req, res) {
     var ship = shipping ? shipping.price : 0;
     var ref = O.newRef(), envio = !!shipping || body.delivery === "envio";
 
-    var saved = await O.recordOrder({
+    var order = {
       ref: ref, name: name, phone: clean(body.phone, 30), delivery: envio ? "envio" : "retiro",
       delivery_label: clean(body.deliveryLabel, 80) || (envio ? "Envío" : "Retiro"),
       ship_cp: shipping ? shipping.cp : "", ship_type: shipping ? shipping.type : "", ship_label: shipping ? shipping.label : "", address: clean(body.address, 160),
       cart_session: clean(body.cartSession, 40),
       items: cart.details.map(function (d) { return { id: d.id, name: d.name, size: d.size, qty: d.qty, unit_price: transfer ? O.transferPrice(d.unit) : d.unit }; }),
       subtotal: shirtsTotal, shipping: ship, total: shirtsTotal + ship, payment_method: payment
-    });
+    };
+    var saved = await O.recordOrder(order);
+    if (saved) await N.notify(N.newOrderText(order, N.base(req)));
     return res.status(200).json({ ref: ref, total: shirtsTotal + ship, saved: saved });
   } catch (e) {
     var status = e.status || (e.name === "AbortError" ? 504 : 500);

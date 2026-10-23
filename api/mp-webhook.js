@@ -11,6 +11,7 @@
  */
 var crypto = require("crypto");
 var O = require("./_orders.js");
+var N = require("./_notify.js");
 
 function validSignature(req, dataId) {
   var secret = process.env.MP_WEBHOOK_SECRET;
@@ -51,6 +52,7 @@ module.exports = async function handler(req, res) {
     if (!/^GC-[A-Z0-9]{4,20}$/.test(ref)) return res.status(200).json({ ok: true, ignored: "sin referencia" });
     var result = await O.rpc("confirm_payment", { p_ref: ref, p_payment_id: String(p.id), p_mp_status: String(p.status), p_amount: Number(p.transaction_amount) });
     console.log("[mp-webhook]", ref, p.status, "->", result);
+    if (result === "pagado" || result === "revisar") await N.notify(N.paidText(ref, p.transaction_amount, N.base(req), result === "revisar"));
     return res.status(200).json({ ok: true, result: result });
   } catch (e) {
     console.error("[mp-webhook]", e.message);
